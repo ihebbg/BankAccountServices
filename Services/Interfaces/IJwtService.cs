@@ -1,4 +1,5 @@
 ﻿using BankAccountServices.DTOs.User;
+using BankAccountServices.Entities;
 
 namespace BankAccountServices.Services.Interfaces
 {
@@ -6,6 +7,7 @@ namespace BankAccountServices.Services.Interfaces
 	{
 		string CreateToken(UserLogin userToken);
 		string CreateSaveRefreshToken(long idUser);
+		bool ValidateRefreshToken(string refreshToken);
 		 
 	}
 }

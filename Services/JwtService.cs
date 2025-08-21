@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using BankAccountServices.DTOs.User;
+using BankAccountServices.Entities;
 using BankAccountServices.Repositories.Interfaces;
 using BankAccountServices.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
@@ -57,6 +58,21 @@ namespace BankAccountServices.Services
 			_jwtRepository.SaveRefreshToken(idUser, refreshToken);
 			return refreshToken;
 
+		}
+
+		public bool ValidateRefreshToken(string refreshToken)
+		{
+			if(string.IsNullOrEmpty(refreshToken))
+			{
+				throw new ArgumentException("refreshToken ne doit pas etre null ou vide");
+
+			}
+			var refresh=_jwtRepository.GetRefreshToken(refreshToken);
+			if(refresh == null)
+			{
+				throw new KeyNotFoundException($"Aucune refresh token trouvé");
+			}
+			return !refresh.IsRevoked && refresh.DateExpiration > DateTime.Now;
 		}
 	}
 }

@@ -1,8 +1,6 @@
 ﻿using BankAccountServices.DTOs;
 using BankAccountServices.DTOs.Customer;
-using BankAccountServices.Entities;
 using BankAccountServices.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace BankAccountServices.Controllers
 {

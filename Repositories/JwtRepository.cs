@@ -37,6 +37,10 @@ namespace BankAccountServices.Repositories
 			_appDbContext.SaveChanges();
 		}
 
-	
+		public RefreshToken GetRefreshToken(string refreshToken)
+		{
+			return _appDbContext.RefreshTokens.Where(x => x.Token == refreshToken).FirstOrDefault()!;
+		
+		}
 	}
 }
