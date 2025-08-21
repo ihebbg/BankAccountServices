@@ -4,8 +4,6 @@ using BankAccountServices.DTOs.Customer;
 using BankAccountServices.Entities;
 using BankAccountServices.Repositories.Interfaces;
 using BankAccountServices.Services.Interfaces;
-using Microsoft.Build.Evaluation;
-using Microsoft.CodeAnalysis.Operations;
 namespace BankAccountServices.Services
 {
 	public class CustomerService(ICustomerRepository repository, ILogger<CustomerService> logger, IMapper mapper) : ICustomerService

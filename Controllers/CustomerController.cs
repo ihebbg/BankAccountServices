@@ -45,14 +45,12 @@ namespace BankAccountServices.Controllers
 		/// Get all customers
 		/// </summary>
 		/// <returns></returns>
-		[Authorize(Roles = "Administrateur")]
+		//[Authorize(Roles = "Administrateur")]
 		[HttpGet("liste")]
 		public ActionResult<List<CustomerResponseDTO>> GetCustomers()
 		{
 
 			return Ok(_customerService.GetCustomers());
-
-
 
 		}
 		[HttpGet("liste/paginated")]

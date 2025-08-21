@@ -29,6 +29,7 @@ namespace BankAccountServices.Entities
 
 		[ForeignKey("IdRole")]
 		public Role Role { get; set; }
+		public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
 	}
 }

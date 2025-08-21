@@ -9,10 +9,16 @@ namespace BankAccountServices.Controllers
 	public class Authentification(IJwtService jwtService) : ControllerBase
 	{
 		private IJwtService _jwtService = jwtService;
-		[HttpPost("create/token")]
-		public IActionResult CreateToken(UserToken user)
+		[HttpPost("login")]
+		public IActionResult Login(UserLogin user)
 		{
-			return Ok(_jwtService.CreateToken(user));
+			var token=_jwtService.CreateToken(user);
+			var refreshToken=_jwtService.CreateSaveRefreshToken(user.IdUser);
+			return Ok(new
+			{
+				token,
+				refreshToken
+			});
 		}
 	}
 }

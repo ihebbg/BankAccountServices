@@ -4,6 +4,8 @@ namespace BankAccountServices.Services.Interfaces
 {
 	public interface IJwtService
 	{
-		string CreateToken(UserToken userToken);
+		string CreateToken(UserLogin userToken);
+		string CreateSaveRefreshToken(long idUser);
+		 
 	}
 }

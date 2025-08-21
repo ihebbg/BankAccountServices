@@ -1,4 +1,6 @@
 ﻿
+using BankAccountServices.DTOs.BankAccount;
+
 namespace BankAccountServices.DTOs.Operation
 {
 	public class OperationResponseDTO
@@ -12,6 +14,7 @@ namespace BankAccountServices.DTOs.Operation
 		public required string Type { get; set; }
 
 
-		public long IdBankAccount { get; set; }
+		public string AccountType { get; set; }
+		public string NameCustomer { get; set; }
 	}
 }

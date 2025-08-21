@@ -3,6 +3,7 @@ using System;
 using BankAccountServices.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankAccountServices.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250821124100_ajouterRefreshTokenUserForeign")]
+    partial class ajouterRefreshTokenUserForeign
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -131,10 +134,6 @@ namespace BankAccountServices.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("date_expiration");
 
-                    b.Property<long>("IdUser")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_user");
-
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("id_revoked");
@@ -144,9 +143,12 @@ namespace BankAccountServices.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("token");
 
+                    b.Property<long?>("UserIdUser")
+                        .HasColumnType("bigint");
+
                     b.HasKey("IdRefreshToken");
 
-                    b.HasIndex("IdUser");
+                    b.HasIndex("UserIdUser");
 
                     b.ToTable("ba_refresh_token");
                 });
@@ -246,13 +248,9 @@ namespace BankAccountServices.Migrations
 
             modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
                 {
-                    b.HasOne("BankAccountServices.Entities.User", "User")
+                    b.HasOne("BankAccountServices.Entities.User", null)
                         .WithMany("RefreshTokens")
-                        .HasForeignKey("IdUser")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
+                        .HasForeignKey("UserIdUser");
                 });
 
             modelBuilder.Entity("BankAccountServices.Entities.User", b =>

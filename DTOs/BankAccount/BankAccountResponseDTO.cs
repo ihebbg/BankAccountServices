@@ -11,6 +11,6 @@ namespace BankAccountServices.DTOs.BankAccount
 		public required string Currency { get; set; }
 		public AccountStatus Status { get; set; }
 		public required string AccountType { get; set; }
-		public int IdCustomer { get; set; }
+		public required string NameCustomer { get; set; }
 	}
 }

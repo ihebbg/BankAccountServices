@@ -11,7 +11,17 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
-
+// Autoriser CORS
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("AllowAngularClient",
+		policy =>
+		{
+			policy.WithOrigins("http://localhost:4200") 
+				  .AllowAnyHeader()
+				  .AllowAnyMethod();
+		});
+});
 // Add services to the container.
 // Lecture des paramètres JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -85,10 +95,12 @@ builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 
 builder.Services.AddScoped<IOperationService, OperationService>();
+builder.Services.AddScoped <IJwtRepository, JwtRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // Active le logging debug
 builder.Logging.AddDebug();
+
 
 var app = builder.Build();
 
@@ -104,6 +116,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 };
+app.UseCors("AllowAngularClient");
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();

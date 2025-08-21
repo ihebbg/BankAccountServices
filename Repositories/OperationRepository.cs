@@ -1,6 +1,7 @@
 ﻿using BankAccountServices.Data;
 using BankAccountServices.Entities;
 using BankAccountServices.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankAccountServices.Repositories
 {
@@ -33,7 +34,10 @@ namespace BankAccountServices.Repositories
 
 		public IEnumerable<AccountOperation> GetAllOperations()
 		{
-			return _appDbContext.AccountOperations.ToList();
+			return _appDbContext.AccountOperations
+				   .Include(o => o.BankAccount)
+					   .ThenInclude(b => b.Customer)
+				   .ToList();
 		}
 
 		public AccountOperation? GetOperatioById(long idOperation)

@@ -35,7 +35,7 @@ namespace BankAccountServices.Entities
 		public long IdCustomer { get; set; }
 
 		[ForeignKey("IdCustomer")]
-		public Customer Customer { get; set; }
+		public required Customer Customer { get; set; } 
 		[NotMapped]
 		public string AccountType => this switch
 		{

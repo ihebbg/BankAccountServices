@@ -3,6 +3,7 @@ using System;
 using BankAccountServices.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BankAccountServices.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250821123818_ajouterRefreshTokenUser")]
+    partial class ajouterRefreshTokenUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -131,10 +134,6 @@ namespace BankAccountServices.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("date_expiration");
 
-                    b.Property<long>("IdUser")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_user");
-
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("tinyint(1)")
                         .HasColumnName("id_revoked");
@@ -145,8 +144,6 @@ namespace BankAccountServices.Migrations
                         .HasColumnName("token");
 
                     b.HasKey("IdRefreshToken");
-
-                    b.HasIndex("IdUser");
 
                     b.ToTable("ba_refresh_token");
                 });
@@ -244,17 +241,6 @@ namespace BankAccountServices.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
-                {
-                    b.HasOne("BankAccountServices.Entities.User", "User")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("IdUser")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("BankAccountServices.Entities.User", b =>
                 {
                     b.HasOne("BankAccountServices.Entities.Role", "Role")
@@ -274,11 +260,6 @@ namespace BankAccountServices.Migrations
             modelBuilder.Entity("BankAccountServices.Entities.Customer", b =>
                 {
                     b.Navigation("BankAccounts");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.User", b =>
-                {
-                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }

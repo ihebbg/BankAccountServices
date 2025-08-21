@@ -3,10 +3,11 @@ using BankAccountServices.Data;
 using BankAccountServices.Entities;
 using BankAccountServices.Enums;
 using BankAccountServices.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace BankAccountServices.Repositories
 {
-	public class BankAccountRepository(AppDbContext appDbContext, IMapper mapper) : IBankAccountRepository
+	public class BankAccountRepository(AppDbContext appDbContext) : IBankAccountRepository
 	{
 
 		private readonly AppDbContext _appDbContext = appDbContext;
@@ -34,7 +35,7 @@ namespace BankAccountServices.Repositories
 
 		public IEnumerable<BankAccount> GetAllBankAccount()
 		{
-			return _appDbContext.BankAccounts
+			return _appDbContext.BankAccounts.Include(c=>c.Customer)
 								  .ToList();
 		}
 

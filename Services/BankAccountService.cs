@@ -54,7 +54,7 @@ namespace BankAccountServices.Services
 				_repository.DeleteBankAccount(bankAccountEntity);
 				r.Code = CodeRetour.Ok;
 				r.Message = "Account deleted";
-			
+
 			}
 			return r;
 
@@ -66,8 +66,6 @@ namespace BankAccountServices.Services
 
 			var accounts = _repository.GetAllBankAccount();
 			return _mapper.Map<List<BankAccountResponseDTO>>(accounts);
-
-
 
 		}
 

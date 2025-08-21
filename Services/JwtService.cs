@@ -1,22 +1,20 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using BankAccountServices.DTOs.User;
+using BankAccountServices.Repositories.Interfaces;
 using BankAccountServices.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 
 namespace BankAccountServices.Services
 {
-	public class JwtService : IJwtService
+	public class JwtService(IConfiguration config, IJwtRepository jwtRepository) : IJwtService
 	{
-		private readonly IConfiguration _config;
+		private readonly IConfiguration _config=config;
+		private readonly IJwtRepository _jwtRepository=jwtRepository;
 
-		public JwtService(IConfiguration config)
-		{
-			_config = config;
-		}
-
-		public string CreateToken(UserToken userToken)
+		public string CreateToken(UserLogin userToken)
 		{
 			var jwtSettings = _config.GetSection("Jwt");
 
@@ -43,6 +41,22 @@ namespace BankAccountServices.Services
 			var tokenHandler = new JwtSecurityTokenHandler();
 			var token = tokenHandler.CreateToken(tokenDescriptor);
 			return tokenHandler.WriteToken(token);
+		}
+
+		public string CreateSaveRefreshToken(long idUser)
+		{
+			if (idUser <= 0)
+			{
+				throw new ArgumentException("Le type doit être un nombre positif.", nameof(idUser));
+			}
+
+			_jwtRepository.RevokeRefreshTokenByUser(idUser);
+			string refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+
+
+			_jwtRepository.SaveRefreshToken(idUser, refreshToken);
+			return refreshToken;
+
 		}
 	}
 }
