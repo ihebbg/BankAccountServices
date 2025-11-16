@@ -13,12 +13,14 @@ namespace BankAccountServices.Entities
 		public long IdUser { get; set; }
 
 		[Required]
-		[EmailAddress]
+		[StringLength(100)]
+
 		[Column("login")]
 
 		public required string Login { get; set; }
 
 		[Required]
+		[StringLength(500)]
 		[Column("password")]
 
 		public required string Password { get; set; }
@@ -28,7 +30,7 @@ namespace BankAccountServices.Entities
 		public required long IdRole { get; set; }
 
 		[ForeignKey("IdRole")]
-		public Role Role { get; set; }
+		public required Role Role { get; set; }
 		public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
 	}

@@ -10,9 +10,11 @@ namespace BankAccountServices.Entities
 		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
 		[Column("id_refresh_token")]
 		public long IdRefreshToken {  get; set; }
-		[Column("token")]
 
-		public string Token {  get; set; }
+		[StringLength(500)]
+		[Column("token")]
+		public required string Token {  get; set; }
+
 		[Column("date_expiration")]
 
 		public DateTime DateExpiration { get; set; }
@@ -28,7 +30,7 @@ namespace BankAccountServices.Entities
 
 		// Navigation property
 		[ForeignKey("IdUser")] // dit à EF que User est lié à IdUser
-		public User User { get; set; }
+		public User? User { get; set; }
 
 	}
 }

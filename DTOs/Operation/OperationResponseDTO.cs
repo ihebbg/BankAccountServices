@@ -14,7 +14,7 @@ namespace BankAccountServices.DTOs.Operation
 		public required string Type { get; set; }
 
 
-		public string AccountType { get; set; }
-		public string NameCustomer { get; set; }
+		public required string  AccountType { get; set; }
+		public required string NameCustomer { get; set; }
 	}
 }

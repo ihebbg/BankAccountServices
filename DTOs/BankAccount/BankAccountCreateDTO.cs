@@ -9,7 +9,7 @@ namespace BankAccountServices.DTOs.BankAccount
 		public double Balance { get; set; }
 
 		[Required]
-		public string Currency { get; set; }
+		public required string Currency { get; set; }
 
 		[Required]
 		public AccountStatus Status { get; set; }

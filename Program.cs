@@ -9,7 +9,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
-using Microsoft.Extensions.Options;
+using Serilog;
+
 var builder = WebApplication.CreateBuilder(args);
 // Autoriser CORS
 builder.Services.AddCors(options =>
@@ -17,7 +18,7 @@ builder.Services.AddCors(options =>
 	options.AddPolicy("AllowAngularClient",
 		policy =>
 		{
-			policy.WithOrigins("http://localhost:4200") 
+			policy.WithOrigins("http://localhost:4200")
 				  .AllowAnyHeader()
 				  .AllowAnyMethod();
 		});
@@ -25,7 +26,7 @@ builder.Services.AddCors(options =>
 // Add services to the container.
 // Lecture des paramètres JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new OpenApiInfo { Title = "DigitalBankAccount", Version = "v1" });
@@ -81,21 +82,32 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+// Configuration de Serilog avec un fichier de logs
+Log.Logger = new LoggerConfiguration()
+	.MinimumLevel.Information()                       // niveau minimum
+	.WriteTo.File(
+		path: "Logs/log.txt",                         // chemin du fichier
+		rollingInterval: RollingInterval.Day,        // un fichier par jour
+		outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}" // format
+	)
+	.CreateLogger();
+
 
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseMySql(builder.Configuration.GetConnectionString("DBConnection"),
 		new MySqlServerVersion(new Version(8, 0, 36))));
+//builder.Services.AddDbContext<AppDbContext>(options =>
+//	options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
 
-
-builder.Services.AddScoped<ICustomerRepository,CustomerRepository>();
-builder.Services.AddScoped<ICustomerService,CustomerService>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 
 builder.Services.AddScoped<IOperationService, OperationService>();
-builder.Services.AddScoped <IJwtRepository, JwtRepository>();
+builder.Services.AddScoped<IJwtRepository, JwtRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // Active le logging debug
@@ -113,8 +125,8 @@ if (app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+	app.UseSwagger();
+	app.UseSwaggerUI();
 };
 app.UseCors("AllowAngularClient");
 

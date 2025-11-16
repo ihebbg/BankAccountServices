@@ -2,13 +2,13 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
+using Serilog;
 
 namespace BankAccountServices.Middleware
 {
-	public class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+	public class GlobalExceptionMiddleware(RequestDelegate next)
 	{
 		private readonly RequestDelegate _next = next;
-		private readonly ILogger<GlobalExceptionMiddleware> _logger = logger;
 
 		public async Task Invoke(HttpContext context)
 		{
@@ -18,7 +18,8 @@ namespace BankAccountServices.Middleware
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "Une erreur est survenue.");
+				// Logger l'erreur avec Serilog
+				Log.Error(ex.Message, "Une erreur est survenue lors du traitement de la requête"); 
 				await HandleExceptionAsync(context, ex);
 			}
 		}

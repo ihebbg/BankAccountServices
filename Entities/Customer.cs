@@ -20,9 +20,9 @@ namespace BankAccountServices.Entities
 		public required string Name { get; set; }
 
 		[Required]
+		[StringLength(100)]
 		[EmailAddress]
-		[Column("email")]
-
+		[Column("email")] 
 		public required string Email { get; set; }
 
 		public ICollection<BankAccount> BankAccounts { get; set; } = new List<BankAccount>();

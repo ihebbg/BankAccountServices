@@ -56,7 +56,7 @@ namespace BankAccountServices.Repositories
 
 		public BankAccount GetBankAccount(long idBankAccount)
 		{
-			return _appDbContext.BankAccounts.Find(idBankAccount);
+			return _appDbContext.BankAccounts.Find(idBankAccount)!;
 		}
 
 

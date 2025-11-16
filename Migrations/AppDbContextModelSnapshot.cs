@@ -9,278 +9,278 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace BankAccountServices.Migrations
 {
-    [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
-    {
-        protected override void BuildModel(ModelBuilder modelBuilder)
-        {
+	[DbContext(typeof(AppDbContext))]
+	partial class AppDbContextModelSnapshot : ModelSnapshot
+	{
+		protected override void BuildModel(ModelBuilder modelBuilder)
+		{
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.0")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+			modelBuilder
+				.HasAnnotation("ProductVersion", "8.0.0")
+				.HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            modelBuilder.Entity("BankAccountServices.Entities.AccountOperation", b =>
-                {
-                    b.Property<long>("IdAccountOperation")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_account_operation");
-
-                    b.Property<double>("Amount")
-                        .HasColumnType("double")
-                        .HasColumnName("amount");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("date");
-
-                    b.Property<long>("IdBankAccount")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_bank_account");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int")
-                        .HasColumnName("type");
-
-                    b.HasKey("IdAccountOperation");
-
-                    b.HasIndex("IdBankAccount");
-
-                    b.ToTable("ba_acount_operation");
-                });
+			modelBuilder.Entity("BankAccountServices.Entities.AccountOperation", b =>
+			{
+				b.Property<long>("IdAccountOperation")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_account_operation");
+
+				b.Property<double>("Amount")
+					.HasColumnType("double")
+					.HasColumnName("amount");
+
+				b.Property<DateTime>("Date")
+					.HasColumnType("datetime(6)")
+					.HasColumnName("date");
+
+				b.Property<long>("IdBankAccount")
+					.HasColumnType("bigint")
+					.HasColumnName("id_bank_account");
+
+				b.Property<int>("Type")
+					.HasColumnType("int")
+					.HasColumnName("type");
+
+				b.HasKey("IdAccountOperation");
+
+				b.HasIndex("IdBankAccount");
+
+				b.ToTable("ba_acount_operation");
+			});
 
-            modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
-                {
-                    b.Property<long>("IdBankAccount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_bank_account");
+			modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
+			{
+				b.Property<long>("IdBankAccount")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_bank_account");
 
-                    b.Property<double>("Balance")
-                        .HasColumnType("double")
-                        .HasColumnName("balance");
+				b.Property<double>("Balance")
+					.HasColumnType("double")
+					.HasColumnName("balance");
 
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created");
+				b.Property<DateTime>("Created")
+					.HasColumnType("datetime(6)")
+					.HasColumnName("created");
 
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("currency");
+				b.Property<string>("Currency")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("currency");
 
-                    b.Property<long>("IdCustomer")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_customer");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int")
-                        .HasColumnName("status");
-
-                    b.Property<string>("account_type")
-                        .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("varchar(13)");
-
-                    b.HasKey("IdBankAccount");
-
-                    b.HasIndex("IdCustomer");
-
-                    b.ToTable("ba_bank_account");
-
-                    b.HasDiscriminator<string>("account_type").HasValue("BankAccount");
-
-                    b.UseTphMappingStrategy();
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.Customer", b =>
-                {
-                    b.Property<long>("IdCustomer")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_customer");
+				b.Property<long>("IdCustomer")
+					.HasColumnType("bigint")
+					.HasColumnName("id_customer");
+
+				b.Property<int>("Status")
+					.HasColumnType("int")
+					.HasColumnName("status");
+
+				b.Property<string>("account_type")
+					.IsRequired()
+					.HasMaxLength(13)
+					.HasColumnType("varchar(13)");
+
+				b.HasKey("IdBankAccount");
+
+				b.HasIndex("IdCustomer");
+
+				b.ToTable("ba_bank_account");
+
+				b.HasDiscriminator<string>("account_type").HasValue("BankAccount");
+
+				b.UseTphMappingStrategy();
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.Customer", b =>
+			{
+				b.Property<long>("IdCustomer")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_customer");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("email");
+				b.Property<string>("Email")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("email");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)")
-                        .HasColumnName("name");
+				b.Property<string>("Name")
+					.IsRequired()
+					.HasMaxLength(50)
+					.HasColumnType("varchar(50)")
+					.HasColumnName("name");
 
-                    b.HasKey("IdCustomer");
+				b.HasKey("IdCustomer");
 
-                    b.ToTable("ba_customer");
-                });
+				b.ToTable("ba_customer");
+			});
 
-            modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
-                {
-                    b.Property<long>("IdRefreshToken")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_refresh_token");
+			modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
+			{
+				b.Property<long>("IdRefreshToken")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_refresh_token");
 
-                    b.Property<DateTime>("DateCreation")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("date_creation");
+				b.Property<DateTime>("DateCreation")
+					.HasColumnType("datetime(6)")
+					.HasColumnName("date_creation");
 
-                    b.Property<DateTime>("DateExpiration")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("date_expiration");
+				b.Property<DateTime>("DateExpiration")
+					.HasColumnType("datetime(6)")
+					.HasColumnName("date_expiration");
 
-                    b.Property<long>("IdUser")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_user");
+				b.Property<long>("IdUser")
+					.HasColumnType("bigint")
+					.HasColumnName("id_user");
 
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("id_revoked");
+				b.Property<bool>("IsRevoked")
+					.HasColumnType("tinyint(1)")
+					.HasColumnName("id_revoked");
 
-                    b.Property<string>("Token")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("token");
+				b.Property<string>("Token")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("token");
 
-                    b.HasKey("IdRefreshToken");
+				b.HasKey("IdRefreshToken");
 
-                    b.HasIndex("IdUser");
+				b.HasIndex("IdUser");
 
-                    b.ToTable("ba_refresh_token");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.Role", b =>
-                {
-                    b.Property<long>("IdRole")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_role");
-
-                    b.Property<string>("RoleName")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("role_name");
-
-                    b.HasKey("IdRole");
-
-                    b.ToTable("ba_role");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.User", b =>
-                {
-                    b.Property<long>("IdUser")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_user");
-
-                    b.Property<long>("IdRole")
-                        .HasColumnType("bigint")
-                        .HasColumnName("id_role");
-
-                    b.Property<string>("Login")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("login");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("password");
-
-                    b.HasKey("IdUser");
-
-                    b.HasIndex("IdRole");
-
-                    b.ToTable("ba_user");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.CurrentAccount", b =>
-                {
-                    b.HasBaseType("BankAccountServices.Entities.BankAccount");
-
-                    b.Property<double>("OverDraft")
-                        .HasColumnType("double")
-                        .HasColumnName("overdraft");
-
-                    b.ToTable("ba_bank_account");
-
-                    b.HasDiscriminator().HasValue("Current");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.SavingAccount", b =>
-                {
-                    b.HasBaseType("BankAccountServices.Entities.BankAccount");
-
-                    b.Property<double>("InterestRate")
-                        .HasColumnType("double")
-                        .HasColumnName("interestrate");
-
-                    b.ToTable("ba_bank_account");
-
-                    b.HasDiscriminator().HasValue("Saving");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.AccountOperation", b =>
-                {
-                    b.HasOne("BankAccountServices.Entities.BankAccount", "BankAccount")
-                        .WithMany("Operations")
-                        .HasForeignKey("IdBankAccount")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BankAccount");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
-                {
-                    b.HasOne("BankAccountServices.Entities.Customer", "Customer")
-                        .WithMany("BankAccounts")
-                        .HasForeignKey("IdCustomer")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
-                {
-                    b.HasOne("BankAccountServices.Entities.User", "User")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("IdUser")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.User", b =>
-                {
-                    b.HasOne("BankAccountServices.Entities.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("IdRole")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
-                {
-                    b.Navigation("Operations");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.Customer", b =>
-                {
-                    b.Navigation("BankAccounts");
-                });
-
-            modelBuilder.Entity("BankAccountServices.Entities.User", b =>
-                {
-                    b.Navigation("RefreshTokens");
-                });
+				b.ToTable("ba_refresh_token");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.Role", b =>
+			{
+				b.Property<long>("IdRole")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_role");
+
+				b.Property<string>("RoleName")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("role_name");
+
+				b.HasKey("IdRole");
+
+				b.ToTable("ba_role");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.User", b =>
+			{
+				b.Property<long>("IdUser")
+					.ValueGeneratedOnAdd()
+					.HasColumnType("bigint")
+					.HasColumnName("id_user");
+
+				b.Property<long>("IdRole")
+					.HasColumnType("bigint")
+					.HasColumnName("id_role");
+
+				b.Property<string>("Login")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("login");
+
+				b.Property<string>("Password")
+					.IsRequired()
+					.HasColumnType("longtext")
+					.HasColumnName("password");
+
+				b.HasKey("IdUser");
+
+				b.HasIndex("IdRole");
+
+				b.ToTable("ba_user");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.CurrentAccount", b =>
+			{
+				b.HasBaseType("BankAccountServices.Entities.BankAccount");
+
+				b.Property<double>("OverDraft")
+					.HasColumnType("double")
+					.HasColumnName("overdraft");
+
+				b.ToTable("ba_bank_account");
+
+				b.HasDiscriminator().HasValue("Current");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.SavingAccount", b =>
+			{
+				b.HasBaseType("BankAccountServices.Entities.BankAccount");
+
+				b.Property<double>("InterestRate")
+					.HasColumnType("double")
+					.HasColumnName("interestrate");
+
+				b.ToTable("ba_bank_account");
+
+				b.HasDiscriminator().HasValue("Saving");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.AccountOperation", b =>
+			{
+				b.HasOne("BankAccountServices.Entities.BankAccount", "BankAccount")
+					.WithMany("Operations")
+					.HasForeignKey("IdBankAccount")
+					.OnDelete(DeleteBehavior.Cascade)
+					.IsRequired();
+
+				b.Navigation("BankAccount");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
+			{
+				b.HasOne("BankAccountServices.Entities.Customer", "Customer")
+					.WithMany("BankAccounts")
+					.HasForeignKey("IdCustomer")
+					.OnDelete(DeleteBehavior.Cascade)
+					.IsRequired();
+
+				b.Navigation("Customer");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.RefreshToken", b =>
+			{
+				b.HasOne("BankAccountServices.Entities.User", "User")
+					.WithMany("RefreshTokens")
+					.HasForeignKey("IdUser")
+					.OnDelete(DeleteBehavior.Cascade)
+					.IsRequired();
+
+				b.Navigation("User");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.User", b =>
+			{
+				b.HasOne("BankAccountServices.Entities.Role", "Role")
+					.WithMany()
+					.HasForeignKey("IdRole")
+					.OnDelete(DeleteBehavior.Cascade)
+					.IsRequired();
+
+				b.Navigation("Role");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.BankAccount", b =>
+			{
+				b.Navigation("Operations");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.Customer", b =>
+			{
+				b.Navigation("BankAccounts");
+			});
+
+			modelBuilder.Entity("BankAccountServices.Entities.User", b =>
+			{
+				b.Navigation("RefreshTokens");
+			});
 #pragma warning restore 612, 618
-        }
-    }
+		}
+	}
 }

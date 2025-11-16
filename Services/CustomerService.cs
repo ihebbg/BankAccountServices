@@ -6,7 +6,7 @@ using BankAccountServices.Repositories.Interfaces;
 using BankAccountServices.Services.Interfaces;
 namespace BankAccountServices.Services
 {
-	public class CustomerService(ICustomerRepository repository, ILogger<CustomerService> logger, IMapper mapper) : ICustomerService
+	public class CustomerService(ICustomerRepository repository, IMapper mapper) : ICustomerService
 
 	{
 		private readonly ICustomerRepository _repository = repository;
@@ -27,12 +27,12 @@ namespace BankAccountServices.Services
 
 			var id = _repository.AddCustomer(customer);
 			r.Code = CodeRetour.Ok;
-			r.Message = "Customer Added";
+			r.Message = "Customer Added Success";
 			r.ID = id;
 			return r;
 
 		}
-		public CustomerResponseDTO? GetCustomerByID(long idCustomer)
+		public CustomerResponseDTO GetCustomerByID(long idCustomer)
 		{
 
 			if (idCustomer <= 0)

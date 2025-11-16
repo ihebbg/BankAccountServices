@@ -9,12 +9,13 @@ namespace BankAccountServices.Entities
 	{
 		[Key]
 		[DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+
 		[Column("id_role")]
 		public required long IdRole {  get; set; }
+		[StringLength(100)]
 
 		[Column("role_name")]
 		[Required]
-
 		public required string RoleName { get; set; }
 
 	}

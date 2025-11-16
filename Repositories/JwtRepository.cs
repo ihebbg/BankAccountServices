@@ -31,6 +31,7 @@ namespace BankAccountServices.Repositories
 				Token = refreshToken,
 				IdUser = idUser,
 				DateCreation = DateTime.Now,
+			
 
 			};
 			_appDbContext.RefreshTokens.Add(input);

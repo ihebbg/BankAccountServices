@@ -31,7 +31,7 @@ namespace BankAccountServices.Repositories
 
 		public Customer GetCustomer(long idCustomer)
 		{
-			return _appDbContext.Customers.Find(idCustomer);
+			return _appDbContext.Customers.Find(idCustomer)!;
 		}
 
 		public IEnumerable<Customer> GettAllCustomer()
