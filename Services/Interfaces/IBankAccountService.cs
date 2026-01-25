@@ -17,7 +17,7 @@ namespace BankAccountServices.Services.Interfaces
 		List<BankAccountResponseDTO> GetBankAccountByStatus(AccountStatus status);
 		List<BankAccountResponseDTO> GetBankAccountByType(string type);
 		List<BankAccountResponseDTO> GetPaginatedBankAccount(int page, int pageSize);
-		Retour UpdateAccount(int idBankAccount, CurrentBankAccountCreateDTO bacnkAccoutUpdate);
+		Retour UpdateAccount(int idBankAccount, CurrentBankAccountCreateDTO bankAccount);
 
 	}
 }
