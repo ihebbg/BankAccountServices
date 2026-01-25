@@ -28,6 +28,7 @@ namespace BankAccountServices.Services
 				{
 					new Claim("jwtLogin", userToken.Login),
 					new Claim(ClaimTypes.Role, userToken.Role),
+
 				};
 
 			var tokenDescriptor = new SecurityTokenDescriptor

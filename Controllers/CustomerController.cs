@@ -1,9 +1,12 @@
 ﻿using BankAccountServices.DTOs;
 using BankAccountServices.DTOs.Customer;
+using BankAccountServices.Entities;
 using BankAccountServices.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace BankAccountServices.Controllers
 {
+	[Authorize]
 	[Route("api/[controller]")]
 	[ApiController]
 	public class CustomerController(ICustomerService customerService) : ControllerBase
@@ -44,10 +47,11 @@ namespace BankAccountServices.Controllers
 		/// </summary>
 		/// <returns></returns>
 		//[Authorize(Roles = "Administrateur")]
+
 		[HttpGet("liste")]
 		public ActionResult<List<CustomerResponseDTO>> GetCustomers()
 		{
-
+			var id = User.FindFirst("jwtLogin");
 			return Ok(_customerService.GetCustomers());
 
 		}
