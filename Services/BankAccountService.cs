@@ -113,5 +113,9 @@ namespace BankAccountServices.Services
 
 		}
 
+		public Retour UpdateAccount(int idBankAccount, CurrentBankAccountCreateDTO input)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }
