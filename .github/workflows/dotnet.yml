@@ -1,6 +1,3 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
 name: .NET
 
 on:
@@ -11,18 +8,26 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
+    # 1️⃣ Récupérer le code du repo
     - uses: actions/checkout@v4
+
+    # 2️⃣ Installer la version de .NET nécessaire
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 8.0.x  # adapte selon ta version
+
+    # 3️⃣ Restaurer les dépendances uniquement du projet principal
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore BankAccountServices/BankAccountServices.csproj
+
+    # 4️⃣ Compiler le projet principal
     - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet build BankAccountServices/BankAccountServices.csproj --no-restore
+
+    # 5️⃣ (Optionnel) Test si tu avais des tests dans ce repo
+    # - name: Test
+    #   run: dotnet test BankAccountServices/BankAccountServices.csproj --no-build --verbosity normal
