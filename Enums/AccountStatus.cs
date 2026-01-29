@@ -2,6 +2,6 @@
 {
 	public enum AccountStatus
 	{
-		CREATED,ACTIVATED,SUSPENDED
+		CREATED,ACTIVATED,SUSPENDED,CLOSED
 	}
 }
