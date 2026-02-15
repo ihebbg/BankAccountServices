@@ -51,7 +51,7 @@ namespace BankAccountServices.Controllers
 		[HttpGet("liste")]
 		public ActionResult<List<CustomerResponseDTO>> GetCustomers()
 		{
-			var idUsdddefr = User.FindFirst("jwtLogin");
+			var idUsdddefdr = User.FindFirst("jwtLogin");
 			return Ok(_customerService.GetCustomers());
 
 		}
