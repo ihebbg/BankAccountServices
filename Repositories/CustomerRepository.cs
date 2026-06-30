@@ -4,13 +4,10 @@ using BankAccountServices.Repositories.Interfaces;
 
 namespace BankAccountServices.Repositories
 {
-    public class CustomerRepository: ICustomerRepository
+    public class CustomerRepository(AppDbContext appDbContext) : ICustomerRepository
 	{
-		private readonly AppDbContext _appDbContext;
-		public CustomerRepository( AppDbContext appDbContext) {
-			_appDbContext = appDbContext;
-		}
-
+		private readonly AppDbContext _appDbContext= appDbContext;
+	
 		public long AddCustomer(Customer customer)
 		{
 			_appDbContext.Customers.Add(customer);

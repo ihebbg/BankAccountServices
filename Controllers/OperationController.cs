@@ -10,6 +10,18 @@ namespace BankAccountServices.Controllers
 	public class OperationController(IOperationService operationService) : ControllerBase
 	{
 		private readonly IOperationService _operationService=operationService;
+
+		/// <summary>
+		/// Get all operations
+		/// </summary>
+		/// <returns></returns>
+		[HttpGet("hello-world")]
+		public ActionResult<List<OperationResponseDTO>> HelloWorld()
+		{
+			return Ok("hello world");
+
+		}
+
 		/// <summary>
 		/// Get all operations
 		/// </summary>

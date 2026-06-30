@@ -18,9 +18,8 @@ namespace BankAccountServices.Services
 
 			if (CustomerEmaiLExist(input.Email))
 			{
-				r.Code = CodeRetour.Ko;
-				r.Message = "Email exist";
-				return r;
+				throw new Exception("Email already exists");
+
 
 			}
 			var customer = _mapper.Map<Customer>(input);
@@ -91,9 +90,8 @@ namespace BankAccountServices.Services
 			var existing = _repository.GetCustomer(idCustomer);
 			if (existing == null)
 			{
-				r.Code = CodeRetour.Ko;
-				r.Message = "Customer not found";
-				return r;
+				throw new KeyNotFoundException($"Aucune customer trouvée avec l'ID {idCustomer}.");
+
 			}
 			var c = _mapper.Map<Customer>(customer);
 			_repository.UpdateCustomer(c, idCustomer);
