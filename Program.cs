@@ -24,17 +24,17 @@ builder.Services.AddCors(options =>
 		});
 });
 // Add services to the container.
-// Lecture des paramètres JWT
+// Lecture des paramÃ¨tres JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new OpenApiInfo { Title = "DigitalBankAccount", Version = "v1" });
 
-	// Ajout de la définition de sécurité pour le Bearer token
+	// Ajout de la dÃ©finition de sÃ©curitÃ© pour le Bearer token
 	c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
 	{
-		Description = "Entrez le token JWT avec le préfixe 'Bearer '",
+		Description = "Entrez le token JWT avec le prÃ©fixe 'Bearer '",
 		Name = "Authorization",
 		In = ParameterLocation.Header,
 		Type = SecuritySchemeType.ApiKey,
@@ -48,7 +48,7 @@ builder.Services.AddSwaggerGen(c =>
 			Reference = new OpenApiReference
 			{
 				Type = ReferenceType.SecurityScheme,
-				Id = "Bearer"   // doit correspondre au nom défini dans AddSecurityDefinition
+				Id = "Bearer"   // doit correspondre au nom dÃ©fini dans AddSecurityDefinition
             },
 			Scheme = "Bearer",
 			Name = "Authorization",
