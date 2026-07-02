@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using BankAccountServices.Configuration;
 using BankAccountServices.DTOs.User;
 using BankAccountServices.Entities;
 using BankAccountServices.Repositories.Interfaces;
@@ -17,10 +18,10 @@ namespace BankAccountServices.Services
 
 		public string CreateToken(UserLogin userToken)
 		{
-			var jwtSettings = _config.GetSection("Jwt");
+			var jwtSettings = JwtSettings.FromConfiguration(_config);
 
 
-			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
+			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key));
 			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
 			// Création des claims
@@ -33,8 +34,8 @@ namespace BankAccountServices.Services
 
 			var tokenDescriptor = new SecurityTokenDescriptor
 			{
-				Issuer = jwtSettings["Issuer"],
-				Audience = jwtSettings["Audience"],
+				Issuer = jwtSettings.Issuer,
+				Audience = jwtSettings.Audience,
 				Subject = new ClaimsIdentity(claims),
 				Expires = DateTime.UtcNow.AddHours(1),
 				SigningCredentials = creds,

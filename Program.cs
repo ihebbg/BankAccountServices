@@ -1,4 +1,5 @@
 using BankAccountServices.Data;
+using BankAccountServices.Configuration;
 using Microsoft.EntityFrameworkCore;
 using BankAccountServices.Services;
 using BankAccountServices.Repositories;
@@ -18,15 +19,15 @@ builder.Services.AddCors(options =>
 	options.AddPolicy("AllowAngularClient",
 		policy =>
 		{
-			policy.WithOrigins("http://localhost:4200")
+			policy.WithOrigins("http://localhost:4200", "https://master.d37dlqubqm13q.amplifyapp.com")
 				  .AllowAnyHeader()
 				  .AllowAnyMethod();
 		});
 });
 // Add services to the container.
 // Lecture des paramètres JWT
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
+var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
+var key = Encoding.UTF8.GetBytes(jwtSettings.Key);
 builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new OpenApiInfo { Title = "DigitalBankAccount", Version = "v1" });
@@ -73,8 +74,8 @@ builder.Services.AddAuthentication(options =>
 		ValidateAudience = true,
 		ValidateLifetime = true,
 		ValidateIssuerSigningKey = true,
-		ValidIssuer = jwtSettings["Issuer"],
-		ValidAudience = jwtSettings["Audience"],
+		ValidIssuer = jwtSettings.Issuer,
+		ValidAudience = jwtSettings.Audience,
 		IssuerSigningKey = new SymmetricSecurityKey(key)
 	};
 });
@@ -96,7 +97,8 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 	options.UseMySql(builder.Configuration.GetConnectionString("DBConnection"),
-		new MySqlServerVersion(new Version(8, 0, 36))));
+		new MySqlServerVersion(new Version(8, 0, 36)),
+		mySqlOptions => mySqlOptions.EnableRetryOnFailure()));
 //builder.Services.AddDbContext<AppDbContext>(options =>
 //	options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
 
