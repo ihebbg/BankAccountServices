@@ -46,12 +46,11 @@ namespace BankAccountServices.Controllers
 		/// Get all customers
 		/// </summary>
 		/// <returns></returns>
-		//[Authorize(Roles = "Administrateur")]
 
 		[HttpGet("liste")]
 		public ActionResult<List<CustomerResponseDTO>> GetCustomers()
 		{
-			var idUsdddefdr = User.FindFirst("jwtLogin");
+			//var idUsdddefdr = User.FindFirst("jwtLogin");
 			return Ok(_customerService.GetCustomers());
 
 		}
