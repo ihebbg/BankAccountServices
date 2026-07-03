@@ -20,6 +20,7 @@ jobs:
       PUBLISH_DIR: publish
       APP_DIR: /var/www/bankaccountservices
       SERVICE_NAME: bankaccountservices.service
+      EF_BUNDLE_RUNTIME: linux-x64
 
     steps:
       - name: Checkout
@@ -38,6 +39,12 @@ jobs:
 
       - name: Publish
         run: dotnet publish "$PROJECT_FILE" -c Release --no-build -o "$PUBLISH_DIR"
+
+      - name: Install EF CLI
+        run: dotnet tool install dotnet-ef --version 8.* --tool-path ./.tools
+
+      - name: Build EF migration bundle
+        run: ./.tools/dotnet-ef migrations bundle --project "$PROJECT_FILE" --startup-project "$PROJECT_FILE" --self-contained -r "$EF_BUNDLE_RUNTIME" --force -o "$PUBLISH_DIR/efbundle"
 
       - name: Keep production config on EC2
         run: rm -f "$PUBLISH_DIR"/appsettings*.json
@@ -114,6 +121,10 @@ jobs:
           fi
 
           sudo chown -R www-data:www-data "$APP_DIR"
+          sudo chmod +x "$APP_DIR/efbundle"
+          cd "$APP_DIR"
+          sudo -u www-data ./efbundle --no-color
+
           sudo systemctl start "$SERVICE_NAME"
           sudo systemctl is-active --quiet "$SERVICE_NAME"
 
