@@ -44,7 +44,7 @@ jobs:
         run: dotnet tool install dotnet-ef --version 8.* --tool-path ./.tools
 
       - name: Build EF migration bundle
-        run: ./.tools/dotnet-ef migrations bundle --project "$PROJECT_FILE" --startup-project "$PROJECT_FILE" -r "$EF_BUNDLE_RUNTIME" --force -o "$PUBLISH_DIR/efbundle"
+        run: ./.tools/dotnet-ef migrations bundle --project "$PROJECT_FILE" --startup-project "$PROJECT_FILE" --self-contained -r "$EF_BUNDLE_RUNTIME" --force -o "$PUBLISH_DIR/efbundle"
 
       - name: Keep production config on EC2
         run: rm -f "$PUBLISH_DIR"/appsettings*.json
@@ -109,7 +109,6 @@ jobs:
           set -euo pipefail
 
           ARCHIVE="/tmp/bankaccountservices-${GITHUB_SHA}.tar.gz"
-          RELEASE_DIR="/tmp/bankaccountservices-${GITHUB_SHA}"
 
           if [ ! -f "$APP_DIR/appsettings.json" ]; then
             echo "Missing $APP_DIR/appsettings.json. Create the production appsettings.json on EC2 before deploying."
@@ -118,19 +117,11 @@ jobs:
 
           find /tmp -maxdepth 1 -name 'bankaccountservices-*' ! -name "bankaccountservices-${GITHUB_SHA}.tar.gz" -exec rm -rf {} +
 
-          rm -rf "$RELEASE_DIR"
-          mkdir -p "$RELEASE_DIR"
-          tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
-
           sudo mkdir -p "$APP_DIR"
           sudo systemctl stop "$SERVICE_NAME"
+          sudo find "$APP_DIR" -mindepth 1 ! -name 'appsettings*.json' ! -path "$APP_DIR/Logs" ! -path "$APP_DIR/Logs/*" -exec rm -rf {} +
           sudo rm -f "$APP_DIR/appsettings.Development.json" "$APP_DIR/appsettings.Staging.json"
-
-          if command -v rsync >/dev/null 2>&1; then
-            sudo rsync -a --delete --exclude 'appsettings*.json' --exclude 'Logs/' "$RELEASE_DIR"/ "$APP_DIR"/
-          else
-            sudo cp -a "$RELEASE_DIR"/. "$APP_DIR"/
-          fi
+          sudo tar -xzf "$ARCHIVE" -C "$APP_DIR"
 
           sudo chown -R www-data:www-data "$APP_DIR"
           sudo chmod +x "$APP_DIR/efbundle"
@@ -140,5 +131,5 @@ jobs:
           sudo systemctl start "$SERVICE_NAME"
           sudo systemctl is-active --quiet "$SERVICE_NAME"
 
-          rm -rf "$RELEASE_DIR" "$ARCHIVE"
+          rm -f "$ARCHIVE"
           EOF
