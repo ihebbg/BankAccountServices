@@ -125,8 +125,12 @@ jobs:
 
           sudo chown -R www-data:www-data "$APP_DIR"
           sudo chmod +x "$APP_DIR/efbundle"
+          BUNDLE_CACHE_DIR="$APP_DIR/.dotnet-bundle-cache"
+          sudo mkdir -p "$BUNDLE_CACHE_DIR"
+          sudo chown -R www-data:www-data "$BUNDLE_CACHE_DIR"
+          sudo chmod 700 "$BUNDLE_CACHE_DIR"
           cd "$APP_DIR"
-          sudo -u www-data ./efbundle --no-color
+          sudo -u www-data env DOTNET_BUNDLE_EXTRACT_BASE_DIR="$BUNDLE_CACHE_DIR" ./efbundle --no-color
 
           sudo systemctl start "$SERVICE_NAME"
           sudo systemctl is-active --quiet "$SERVICE_NAME"
