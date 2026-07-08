@@ -18,8 +18,7 @@ namespace BankAccountServices.Controllers
 		[HttpGet("hello-world")]
 		public ActionResult<List<OperationResponseDTO>> HelloWorld()
 		{
-			return Ok("hello world");
-
+			throw new Exception("Test CloudWatch exception depuis /api/Operation/hello-world");
 		}
 
 		/// <summary>
