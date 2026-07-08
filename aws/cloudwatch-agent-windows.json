@@ -10,7 +10,7 @@
             "file_path": "/home/ubuntu/BankAccountServices/Logs/log*.txt",
             "log_group_name": "/bank-account-services/api",
             "log_stream_name": "{instance_id}/application",
-            "timezone": "UTC",
+            "timezone": "UTC", 
             "retention_in_days": 14
           }
         ]
