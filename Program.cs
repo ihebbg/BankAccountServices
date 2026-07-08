@@ -126,6 +126,7 @@ if (app.Environment.IsDevelopment())
 }
 app.UseCors("AllowAngularClient");
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
@@ -135,4 +136,12 @@ app.UseAuthorization();
 app.MapControllers();
 
 
-app.Run();
+try
+{
+	Log.Information("Starting BankAccountServices API");
+	app.Run();
+}
+finally
+{
+	Log.CloseAndFlush();
+}

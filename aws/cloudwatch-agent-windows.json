@@ -1,0 +1,49 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/home/ubuntu/BankAccountServices/Logs/log*.txt",
+            "log_group_name": "/bank-account-services/api",
+            "log_stream_name": "{instance_id}/application",
+            "timezone": "UTC",
+            "retention_in_days": 14
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "BankAccountServices/EC2",
+    "metrics_collected": {
+      "LogicalDisk": {
+        "measurement": [
+          "% Free Space"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      },
+      "Memory": {
+        "measurement": [
+          "% Committed Bytes In Use"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "Processor": {
+        "measurement": [
+          "% Processor Time"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      }
+    }
+  }
+}

@@ -19,7 +19,7 @@ namespace BankAccountServices.Middleware
 			catch (Exception ex)
 			{
 				// Logger l'erreur avec Serilog
-				Log.Error(ex.Message, "Une erreur est survenue lors du traitement de la requête"); 
+				Log.Error(ex, "Une erreur est survenue lors du traitement de {Method} {Path}", context.Request.Method, context.Request.Path);
 				await HandleExceptionAsync(context, ex);
 			}
 		}
