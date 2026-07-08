@@ -23,6 +23,24 @@ namespace BankAccountServices.Middleware
 				_ => LogEventLevel.Information
 			};
 
+			var exceptionMessage = context.Items.TryGetValue("ExceptionMessage", out var message)
+				? message?.ToString()
+				: null;
+
+			if (!string.IsNullOrWhiteSpace(exceptionMessage))
+			{
+				Log.Write(
+					level,
+					"HTTP {Method} {Path} responded {StatusCode} in {ElapsedMilliseconds} ms. Exception: {ErrorMessage}",
+					context.Request.Method,
+					context.Request.Path.Value,
+					context.Response.StatusCode,
+					stopwatch.ElapsedMilliseconds,
+					exceptionMessage);
+
+				return;
+			}
+
 			Log.Write(
 				level,
 				"HTTP {Method} {Path} responded {StatusCode} in {ElapsedMilliseconds} ms",

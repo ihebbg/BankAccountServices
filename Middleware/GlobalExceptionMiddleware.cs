@@ -18,6 +18,7 @@ namespace BankAccountServices.Middleware
 			}
 			catch (Exception ex)
 			{
+				context.Items["ExceptionMessage"] = ex.Message;
 				// Logger l'erreur avec Serilog
 				Log.Error(ex, "Une erreur est survenue lors du traitement de {Method} {Path}: {ErrorMessage}", context.Request.Method, context.Request.Path, ex.Message);
 				await HandleExceptionAsync(context, ex);
