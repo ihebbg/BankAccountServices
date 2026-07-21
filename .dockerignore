@@ -1,0 +1,13 @@
+bin/
+obj/
+Logs/
+.git/
+.vs/
+.vscode/
+Dockerfile
+docker-compose*.yml
+*.user
+*.suo
+*.cache
+*.log
+aws/

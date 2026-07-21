@@ -26,7 +26,7 @@ namespace BankAccountServices.Services
 
 			var id = _repository.AddCustomer(customer);
 			r.Code = CodeRetour.Ok;
-			r.Message = "Customer Added success23";
+			r.Message = "Customer Added successfully";
 			r.ID = id;
 			return r;
 

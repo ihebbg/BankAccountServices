@@ -11,6 +11,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using Amazon;
+using Amazon.S3;
 
 var builder = WebApplication.CreateBuilder(args);
 // Autoriser CORS
@@ -111,6 +113,26 @@ builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 builder.Services.AddScoped<IOperationService, OperationService>();
 builder.Services.AddScoped<IJwtRepository, JwtRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddSingleton(sp => S3Settings.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+	var s3Settings = sp.GetRequiredService<S3Settings>();
+	var s3Config = new AmazonS3Config();
+
+	if (!string.IsNullOrWhiteSpace(s3Settings.ServiceUrl))
+	{
+		s3Config.ServiceURL = s3Settings.ServiceUrl;
+		s3Config.ForcePathStyle = s3Settings.ForcePathStyle;
+	}
+
+	if (!string.IsNullOrWhiteSpace(s3Settings.Region))
+	{
+		s3Config.RegionEndpoint = RegionEndpoint.GetBySystemName(s3Settings.Region);
+	}
+
+	return new AmazonS3Client(s3Config);
+});
+builder.Services.AddScoped<IS3StorageService, S3StorageService>();
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // Active le logging debug
 builder.Logging.AddDebug();
