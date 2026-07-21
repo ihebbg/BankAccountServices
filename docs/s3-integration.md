@@ -9,7 +9,7 @@ Ajoute la section suivante dans `appsettings.json`, dans les variables d'environ
 ```json
 {
   "S3": {
-    "BucketName": "bucketbankaccount",
+    "BucketName": "lambdacomp",
     "Region": "us-east-1",
     "Prefix": "",
     "PreSignedUrlExpirationMinutes": 15

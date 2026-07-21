@@ -22,7 +22,7 @@ namespace BankAccountServices.Controllers
 		public ActionResult<Retour> AddCustomer(CustomerCreateDTO input)
 		{
 
-			if (ModelState.IsValid)
+			if (!ModelState.IsValid)
 			{
 				return BadRequest(ModelState);
 			}
