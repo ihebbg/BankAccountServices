@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
 	options.AddPolicy("AllowAngularClient",
 		policy =>
 		{
-			policy.WithOrigins("http://localhost:4200", "https://master.d37dlqubqm13q.amplifyapp.com")
+			policy.WithOrigins("http://localhost:4200", "https://master.d37dlqubqm13q.amplifyapp.com","http://18.207.191.73","https://18.207.191.73")
 				  .AllowAnyHeader()
 				  .AllowAnyMethod();
 		});
