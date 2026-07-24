@@ -13,20 +13,20 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Amazon;
 using Amazon.S3;
-
 var builder = WebApplication.CreateBuilder(args);
+
 // Autoriser CORS
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("AllowAngularClient",
 		policy =>
 		{
-			policy.WithOrigins("http://localhost:4200", "https://master.d37dlqubqm13q.amplifyapp.com","http://18.207.191.73","https://18.207.191.73")
+		    policy.AllowAnyOrigin()
 				  .AllowAnyHeader()
 				  .AllowAnyMethod();
 		});
 });
-// Add services to the container.
+
 // Lecture des paramètres JWT
 var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
 var key = Encoding.UTF8.GetBytes(jwtSettings.Key);
