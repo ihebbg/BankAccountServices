@@ -13,5 +13,9 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
 
-COPY --from=build /app/publish ./
+COPY --from=build --chown=app:app /app/publish ./
+RUN mkdir -p /app/Logs && chown -R app:app /app/Logs
+
+USER app
+
 ENTRYPOINT ["dotnet", "BankAccountServices.dll"]

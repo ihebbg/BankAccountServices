@@ -80,20 +80,17 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "IMAGE_SHA=$ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_SHA}" >> "$GITHUB_ENV"
-          echo "IMAGE_LATEST=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> "$GITHUB_ENV"
 
       - name: Build Docker image
         run: |
           docker build \
+            --pull \
             --platform linux/amd64 \
             --tag "$IMAGE_SHA" \
-            --tag "$IMAGE_LATEST" \
             .
 
       - name: Push Docker image to ECR
-        run: |
-          docker push "$IMAGE_SHA"
-          docker push "$IMAGE_LATEST"
+        run: docker push "$IMAGE_SHA"
 
       - name: Configure SSH
         env:
@@ -154,15 +151,50 @@ jobs:
             | sudo docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
           sudo docker pull "$IMAGE"
-          sudo docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+          BACKUP_CONTAINER="${CONTAINER_NAME}-rollback"
+          sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
+
+          if sudo docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+            sudo docker stop "$CONTAINER_NAME"
+            sudo docker rename "$CONTAINER_NAME" "$BACKUP_CONTAINER"
+          fi
 
           sudo docker run -d \
             --name "$CONTAINER_NAME" \
             --restart unless-stopped \
             --env-file /etc/bankaccountservices.env \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --pids-limit 200 \
+            --memory 512m \
+            --cpus 1 \
             -p "$HOST_PORT:$CONTAINER_PORT" \
             "$IMAGE"
 
+          HEALTHY=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error \
+              "http://127.0.0.1:${HOST_PORT}/health" >/dev/null; then
+              HEALTHY=true
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$HEALTHY" != "true" ]; then
+            echo "The new container failed its health check. Rolling back."
+            sudo docker logs --tail 100 "$CONTAINER_NAME" || true
+            sudo docker rm -f "$CONTAINER_NAME"
+
+            if sudo docker inspect "$BACKUP_CONTAINER" >/dev/null 2>&1; then
+              sudo docker rename "$BACKUP_CONTAINER" "$CONTAINER_NAME"
+              sudo docker start "$CONTAINER_NAME"
+            fi
+            exit 1
+          fi
+
+          sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
           sudo docker image prune -f
           sudo docker ps --filter "name=$CONTAINER_NAME"
           EOF
