@@ -1,0 +1,119 @@
+name: Build, push to ECR and deploy to Ubuntu
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bankaccountservices-ecr-production
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: bankaccount-ecr
+  EC2_HOST: ec2-18-212-114-126.compute-1.amazonaws.com
+  EC2_USER: ubuntu
+  EC2_SSH_PORT: "22"
+  CONTAINER_NAME: bankaccountservices
+  HOST_PORT: "5000"
+  CONTAINER_PORT: "5000"
+
+jobs:
+  build-push-deploy:
+    name: Build image, push it and deploy it
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify ECR repository
+        run: |
+          aws ecr describe-repositories \
+            --repository-names "$ECR_REPOSITORY" \
+            --region "$AWS_REGION"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image names
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "IMAGE_SHA=$ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_SHA}" >> "$GITHUB_ENV"
+          echo "IMAGE_LATEST=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> "$GITHUB_ENV"
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --tag "$IMAGE_SHA" \
+            --tag "$IMAGE_LATEST" \
+            .
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_LATEST"
+
+      - name: Configure SSH
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$EC2_SSH_PRIVATE_KEY"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/ec2_key"
+          chmod 600 "$HOME/.ssh/ec2_key"
+          ssh-keyscan -T 30 -p "$EC2_SSH_PORT" -H "$EC2_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Pull and run image on Ubuntu
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          ssh \
+            -p "$EC2_SSH_PORT" \
+            -i "$HOME/.ssh/ec2_key" \
+            "$EC2_USER@$EC2_HOST" \
+            "AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' IMAGE='$IMAGE_SHA' CONTAINER_NAME='$CONTAINER_NAME' HOST_PORT='$HOST_PORT' CONTAINER_PORT='$CONTAINER_PORT' bash -s" <<'EOF'
+          set -euo pipefail
+
+          command -v aws >/dev/null 2>&1 || {
+            echo "AWS CLI is not installed on the EC2 instance."
+            exit 1
+          }
+          command -v docker >/dev/null 2>&1 || {
+            echo "Docker is not installed on the EC2 instance."
+            exit 1
+          }
+          test -f /etc/bankaccountservices.env || {
+            echo "Missing /etc/bankaccountservices.env on the EC2 instance."
+            exit 1
+          }
+
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | sudo docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          sudo docker pull "$IMAGE"
+          sudo docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+          sudo docker run -d \
+            --name "$CONTAINER_NAME" \
+            --restart unless-stopped \
+            --env-file /etc/bankaccountservices.env \
+            -p "$HOST_PORT:$CONTAINER_PORT" \
+            "$IMAGE"
+
+          sudo docker image prune -f
+          sudo docker ps --filter "name=$CONTAINER_NAME"
+          EOF

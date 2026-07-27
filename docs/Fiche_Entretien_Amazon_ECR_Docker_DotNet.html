@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Fiche entretien — Amazon ECR, Docker et .NET</title>
+<style>
+ @page { size:A4; margin:15mm 14mm 16mm; }
+ * { box-sizing:border-box; }
+ body { margin:0; color:#192234; font:10.2pt/1.43 "Segoe UI",Arial,sans-serif; }
+ h1 { margin:0 0 3mm; color:#183c78; font-size:24pt; line-height:1.1; }
+ h2 { margin:6mm 0 2.5mm; padding-bottom:1.5mm; color:#285eaa; border-bottom:1px solid #bed0e9; font-size:15pt; }
+ h3 { margin:4mm 0 1.5mm; color:#294e81; font-size:11.5pt; }
+ p { margin:1.5mm 0 2.4mm; }
+ ul,ol { margin:1.5mm 0 2.5mm 5mm; padding-left:4mm; } li { margin:1mm 0; }
+ code { font:9pt Consolas,monospace; }
+ pre { margin:2mm 0 3mm; padding:3mm; white-space:pre-wrap; overflow-wrap:anywhere; color:#eef5ff; background:#1e2e49; border-radius:4px; font:8.2pt/1.38 Consolas,monospace; }
+ table { width:100%; border-collapse:collapse; margin:2mm 0 3mm; }
+ th { color:#fff; background:#356db3; text-align:left; }
+ th,td { border:1px solid #bfd0e5; padding:2mm 2.5mm; vertical-align:top; }
+ tr:nth-child(even) td { background:#f2f6fb; }
+ .subtitle { color:#58687e; font-size:12pt; margin-bottom:5mm; }
+ .flow { padding:4mm; text-align:center; font-weight:600; color:#193f76; background:#edf4fd; border:1px solid #bcd2ec; border-radius:5px; }
+ .note { margin:3mm 0; padding:3mm 4mm; background:#fff8df; border-left:4px solid #dda31f; }
+ .good { margin:2mm 0 3mm; padding:3mm 4mm; background:#edf8f0; border-left:4px solid #48925a; }
+ .answer { margin:2mm 0 3mm; padding:3mm 4mm; background:#eef4fc; border-left:4px solid #356fb6; }
+ .page-break { break-before:page; }
+ h2,h3 { break-after:avoid; } pre,table,.note,.good,.answer { break-inside:avoid; }
+ a { color:#255d9f; }
+ footer { margin-top:7mm; color:#748194; font-size:8.5pt; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>Fiche entretien : Amazon ECR</h1>
+<div class="subtitle">Registry Docker privé, images .NET, sécurité, CI/CD et déploiement EC2/ECS</div>
+
+<div class="flow">Code source → Docker build → Scan → Amazon ECR → EC2 / ECS / EKS / Lambda</div>
+
+<h2>1. Qu’est-ce qu’Amazon ECR ?</h2>
+
+<p>Amazon Elastic Container Registry est un registre managé pour stocker, versionner, analyser et distribuer des images de conteneurs Docker/OCI.</p>
+
+<table>
+ <tr><th>Terme</th><th>Définition</th></tr>
+ <tr><td>Registry</td><td>Registre régional associé à un compte AWS : <code>COMPTE.dkr.ecr.REGION.amazonaws.com</code>.</td></tr>
+ <tr><td>Repository</td><td>Collection logique d’images d’une application, par exemple <code>bankaccount-api</code>.</td></tr>
+ <tr><td>Image</td><td>Artefact immuable composé de couches.</td></tr>
+ <tr><td>Tag</td><td>Alias lisible comme <code>v1.4.2</code> ou <code>commit-a1b2c3</code>.</td></tr>
+ <tr><td>Digest</td><td>Identifiant cryptographique immuable <code>sha256:...</code>.</td></tr>
+</table>
+
+<div class="note">ECR stocke les images ; il ne les exécute pas. ECS, EKS, EC2, Lambda ou App Runner exécutent les conteneurs.</div>
+
+<h2>2. ECR privé et ECR public</h2>
+
+<table>
+ <tr><th>ECR Private</th><th>ECR Public</th></tr>
+ <tr><td>Images accessibles via IAM et repository policies, destinées aux workloads privés d’une organisation.</td><td>Images publiées pour une consommation publique, avec un catalogue public.</td></tr>
+</table>
+
+<p>Pour une API bancaire .NET, utiliser normalement un repository privé.</p>
+
+<h2>3. Créer un repository</h2>
+
+<pre>aws ecr create-repository \
+  --repository-name bankaccount-api \
+  --region us-east-1 \
+  --image-tag-mutability IMMUTABLE \
+  --image-scanning-configuration scanOnPush=true</pre>
+
+<p>URI obtenue :</p>
+<pre>652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-api</pre>
+
+<h3>Choix recommandés</h3>
+<ul>
+ <li>Tags immuables pour empêcher l’écrasement d’une version.</li>
+ <li>Scan activé ; Enhanced Scanning avec Amazon Inspector en production.</li>
+ <li>Chiffrement AES-256 ou KMS selon les exigences.</li>
+ <li>Lifecycle policy pour supprimer les images anciennes.</li>
+ <li>Tags AWS : application, environnement, propriétaire et coût.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>4. Construire l’image ASP.NET Core</h2>
+
+<p>Exemple de Dockerfile multi-stage :</p>
+
+<pre>FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY BankAccountServices.csproj ./
+RUN dotnet restore
+COPY . .
+RUN dotnet publish -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:5000
+EXPOSE 5000
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "BankAccountServices.dll"]</pre>
+
+<p>Construire et tester :</p>
+
+<pre>docker build -t bankaccount-api:local .
+docker run --rm -p 5000:5000 \
+  --env ASPNETCORE_ENVIRONMENT=Production \
+  bankaccount-api:local
+
+curl http://localhost:5000/api/Customer/liste</pre>
+
+<h3>Bonnes pratiques image</h3>
+<ul>
+ <li>Utiliser un build multi-stage et une image runtime minimale.</li>
+ <li>Épingler les versions de base et reconstruire régulièrement.</li>
+ <li>Ne pas copier les secrets dans l’image.</li>
+ <li>Ajouter un fichier <code>.dockerignore</code>.</li>
+ <li>Exécuter avec un utilisateur non-root lorsque possible.</li>
+ <li>Scanner les dépendances et l’image finale.</li>
+</ul>
+
+<h2>5. Authentification Docker auprès d’ECR</h2>
+
+<p>Le principal IAM doit avoir <code>ecr:GetAuthorizationToken</code>. Connexion :</p>
+
+<pre>aws ecr get-login-password --region us-east-1 |
+docker login \
+  --username AWS \
+  --password-stdin \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com</pre>
+
+<p>Le mot de passe temporaire ne doit pas être enregistré dans Git ou affiché dans les logs.</p>
+
+<h2>6. Taguer et pousser l’image</h2>
+
+<pre>ACCOUNT_ID=652197205619
+REGION=us-east-1
+REPOSITORY=bankaccount-api
+VERSION=1.0.0
+
+docker tag bankaccount-api:local \
+  $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY:$VERSION
+
+docker push \
+  $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPOSITORY:$VERSION</pre>
+
+<p>Ajouter aussi un tag de commit facilite la traçabilité :</p>
+
+<pre>VERSION=$(git rev-parse --short HEAD)</pre>
+
+<div class="good">En production, déployer un tag versionné ou, mieux, un digest. Éviter de dépendre uniquement de <code>latest</code>, dont le contenu peut changer.</div>
+
+<div class="page-break"></div>
+
+<h2>7. Pull et exécution sur EC2</h2>
+
+<p>Attacher à EC2 un IAM Role permettant de lire le repository. Ne pas placer de clés AWS sur le serveur.</p>
+
+<pre>aws ecr get-login-password --region us-east-1 |
+docker login --username AWS --password-stdin \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com
+
+docker pull \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-api:1.0.0
+
+docker run -d \
+  --name bankaccount-api \
+  --restart unless-stopped \
+  -p 127.0.0.1:5000:5000 \
+  --env-file /etc/bankaccount.env \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-api:1.0.0</pre>
+
+<p>Nginx ou un ALB expose ensuite l’application, tandis que le port conteneur reste privé.</p>
+
+<h2>8. Permissions IAM</h2>
+
+<h3>Permissions minimales pour pull</h3>
+
+<pre>{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:652197205619:repository/bankaccount-api"
+    }
+  ]
+}</pre>
+
+<h3>Permissions supplémentaires pour push CI/CD</h3>
+
+<pre>ecr:InitiateLayerUpload
+ecr:UploadLayerPart
+ecr:CompleteLayerUpload
+ecr:PutImage</pre>
+
+<p>Les repository policies sont des politiques basées sur la ressource. Elles servent notamment à autoriser un autre compte AWS à lire un repository.</p>
+
+<div class="note">Pour un accès cross-account, il faut généralement une autorisation côté repository et une autorisation IAM côté principal externe.</div>
+
+<h2>9. Tags immuables et digests</h2>
+
+<p>Avec l’immutabilité, pousser une nouvelle image sous un tag existant échoue. Cette protection évite qu’un artefact approuvé change silencieusement.</p>
+
+<pre># Tag humain
+bankaccount-api:1.0.0
+
+# Tag traçable
+bankaccount-api:commit-a1b2c3d
+
+# Référence immuable
+bankaccount-api@sha256:abcdef...</pre>
+
+<div class="page-break"></div>
+
+<h2>10. Scan des vulnérabilités</h2>
+
+<table>
+ <tr><th>Basic scanning</th><th>Enhanced scanning</th></tr>
+ <tr><td>Analyse des vulnérabilités de l’image selon la configuration ECR.</td><td>Intégration Amazon Inspector, analyse automatisée et continue des packages OS et langages.</td></tr>
+</table>
+
+<pre>aws ecr start-image-scan \
+  --repository-name bankaccount-api \
+  --image-id imageTag=1.0.0
+
+aws ecr describe-image-scan-findings \
+  --repository-name bankaccount-api \
+  --image-id imageTag=1.0.0</pre>
+
+<p>Une pipeline peut bloquer la promotion en production lorsqu’une vulnérabilité critique non acceptée est détectée.</p>
+
+<h2>11. Lifecycle Policy</h2>
+
+<p>Exemple : conserver seulement les 20 dernières images taguées <code>release-*</code>.</p>
+
+<pre>{
+  "rules": [{
+    "rulePriority": 1,
+    "description": "Conserver 20 releases",
+    "selection": {
+      "tagStatus": "tagged",
+      "tagPrefixList": ["release-"],
+      "countType": "imageCountMoreThan",
+      "countNumber": 20
+    },
+    "action": { "type": "expire" }
+  }]
+}</pre>
+
+<p>Toujours exécuter la preview avant d’appliquer une lifecycle policy. Les images éligibles sont ensuite expirées automatiquement.</p>
+
+<div class="note">Ne pas supprimer une image encore référencée par ECS, un Launch Template, une procédure de rollback ou un environnement rarement redéployé.</div>
+
+<h2>12. Déploiement avec ECS</h2>
+
+<div class="flow">ECR image → ECS Task Definition → ECS Service → Tasks Fargate/EC2 → ALB Target Group</div>
+
+<ol>
+ <li>La pipeline pousse une nouvelle image ECR.</li>
+ <li>Elle crée une nouvelle révision de Task Definition.</li>
+ <li>Le service ECS lance les nouveaux tasks.</li>
+ <li>L’ALB attend leurs health checks.</li>
+ <li>ECS retire progressivement les anciens tasks.</li>
+</ol>
+
+<p>Le Task Execution Role permet à ECS de tirer l’image et d’écrire les logs. Le Task Role donne à l’application ses permissions métiers, par exemple S3.</p>
+
+<div class="good">Séparer Task Execution Role et Task Role est une réponse importante en entretien.</div>
+
+<h2>13. CI/CD avec GitHub Actions</h2>
+
+<div class="flow">Push Git → tests → docker build → scan → login ECR → push → déploiement ECS/EC2</div>
+
+<pre>permissions:
+  id-token: write
+  contents: read
+
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: aws-actions/configure-aws-credentials@v4
+    with:
+      role-to-assume: arn:aws:iam::652197205619:role/github-ecr-push
+      aws-region: us-east-1
+
+  - uses: aws-actions/amazon-ecr-login@v2
+
+  - run: |
+      IMAGE=652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-api:${GITHUB_SHA}
+      docker build -t "$IMAGE" .
+      docker push "$IMAGE"</pre>
+
+<p>OIDC permet à GitHub d’assumer temporairement un rôle AWS, sans stocker une access key permanente dans les secrets GitHub.</p>
+
+<div class="page-break"></div>
+
+<h2>14. Réplication et haute disponibilité</h2>
+
+<p>ECR peut répliquer des images :</p>
+<ul>
+ <li>vers une autre région pour reprise après sinistre ou proximité ;</li>
+ <li>vers un autre compte pour séparer build, recette et production.</li>
+</ul>
+
+<p>La réplication s’applique aux nouvelles images après configuration. Les politiques repository et lifecycle ne sont pas automatiquement répliquées dans tous les scénarios ; elles doivent être gérées dans chaque destination ou via des templates.</p>
+
+<h2>15. Monitoring et audit</h2>
+
+<ul>
+ <li>CloudTrail journalise les opérations ECR.</li>
+ <li>Amazon Inspector fournit les findings de sécurité.</li>
+ <li>EventBridge peut réagir à un push ou à un scan.</li>
+ <li>Security Hub contrôle notamment scan, immutabilité, lifecycle et chiffrement.</li>
+ <li>Les tags de ressources facilitent coûts et gouvernance.</li>
+</ul>
+
+<h2>16. Diagnostic</h2>
+
+<table>
+ <tr><th>Erreur</th><th>Cause probable</th></tr>
+ <tr><td><code>no basic auth credentials</code></td><td>Docker non authentifié ou token expiré ; refaire <code>get-login-password</code>.</td></tr>
+ <tr><td><code>AccessDenied</code></td><td>Permission IAM/repository/KMS absente.</td></tr>
+ <tr><td><code>repository does not exist</code></td><td>Nom, compte ou région incorrect.</td></tr>
+ <tr><td><code>ImageTagAlreadyExistsException</code></td><td>Repository immutable et tag déjà utilisé.</td></tr>
+ <tr><td><code>manifest unknown</code></td><td>Tag/digest inexistant ou mauvais repository.</td></tr>
+ <tr><td><code>exec format error</code></td><td>Architecture image incompatible, par exemple ARM64 versus x86_64.</td></tr>
+ <tr><td>Image pull lent/échoue en subnet privé</td><td>NAT ou VPC endpoints ECR API, ECR DKR et S3 manquants.</td></tr>
+</table>
+
+<pre>aws sts get-caller-identity
+aws ecr describe-repositories --region us-east-1
+aws ecr describe-images \
+  --repository-name bankaccount-api \
+  --region us-east-1
+docker image inspect IMAGE</pre>
+
+<h2>17. Questions fréquentes d’entretien</h2>
+
+<h3>ECR ou ECS ?</h3>
+<div class="answer">ECR stocke les images. ECS orchestre et exécute les conteneurs à partir de ces images.</div>
+
+<h3>Pourquoi éviter latest ?</h3>
+<div class="answer">Le tag ne garantit pas quel binaire est déployé. Une version, un commit ou un digest rend le déploiement traçable et reproductible.</div>
+
+<h3>Comment EC2 accède-t-elle à ECR ?</h3>
+<div class="answer">Avec un IAM Role attaché à l’instance. AWS CLI/Docker obtient un token temporaire puis tire l’image ; aucune access key n’est stockée.</div>
+
+<h3>Comment sécuriser un repository ?</h3>
+<div class="answer">Repository privé, moindre privilège IAM, tags immuables, scan Inspector, chiffrement, lifecycle policy, CloudTrail et réplication si nécessaire.</div>
+
+<h3>Comment déployer une nouvelle version ?</h3>
+<div class="answer">La CI construit et pousse une image taguée par commit, puis met à jour la Task Definition ECS ou le mécanisme EC2. Les health checks valident la nouvelle version avant retrait de l’ancienne.</div>
+
+<h3>Différence entre image et conteneur ?</h3>
+<div class="answer">L’image est un artefact immuable stocké dans ECR ; le conteneur est une instance en exécution de cette image.</div>
+
+<h3>Comment retirer les anciennes images ?</h3>
+<div class="answer">Avec une lifecycle policy testée en preview, en conservant suffisamment de versions pour les déploiements et rollbacks.</div>
+
+<h2>18. Réponse orale en une minute</h2>
+
+<div class="good">
+ Amazon ECR est le registre managé AWS pour images Docker et OCI. Ma pipeline compile et teste l’API .NET, construit une image multi-stage, la scanne, puis l’envoie vers un repository privé en utilisant un rôle IAM temporaire via OIDC. Je tague l’image avec la version ou le SHA du commit et j’active l’immutabilité pour éviter les écrasements. ECS, EKS ou EC2 tire ensuite l’image grâce à un rôle IAM, sans clés statiques. J’active Enhanced Scanning avec Inspector, le chiffrement, CloudTrail et une lifecycle policy contrôlée pour gérer les anciennes versions. Pour un déploiement ECS, je crée une nouvelle révision de Task Definition, le service lance les nouveaux tasks et l’ALB attend leurs health checks avant de retirer l’ancienne version.
+</div>
+
+<h2>19. Sources officielles</h2>
+<ul>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html">Cycle de vie d’une image ECR avec AWS CLI</a></li>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/Repositories.html">Repositories privés ECR</a></li>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning.html">Scan des vulnérabilités</a></li>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html">Immutabilité des tags</a></li>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/LifecyclePolicies.html">Lifecycle policies</a></li>
+ <li><a href="https://docs.aws.amazon.com/AmazonECR/latest/userguide/security_iam_service-with-iam.html">ECR et IAM</a></li>
+</ul>
+
+<footer>Fiche de préparation entretien — Amazon ECR, Docker et ASP.NET Core</footer>
+</body>
+</html>

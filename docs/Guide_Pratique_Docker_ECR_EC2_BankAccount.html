@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Guide pratique — Déployer une image Docker ECR sur EC2</title>
+<style>
+ @page { size:A4; margin:15mm 14mm 16mm; }
+ * { box-sizing:border-box; }
+ body { margin:0; color:#172235; font:10.3pt/1.44 "Segoe UI",Arial,sans-serif; }
+ h1 { margin:0 0 3mm; color:#153f78; font-size:23pt; line-height:1.1; }
+ h2 { margin:6mm 0 2.5mm; padding-bottom:1.5mm; color:#2768ad; border-bottom:1px solid #bdd0e5; font-size:15pt; }
+ h3 { margin:4mm 0 1.5mm; color:#294e7a; font-size:11.5pt; }
+ p { margin:1.5mm 0 2.4mm; }
+ ul,ol { margin:1.5mm 0 2.5mm 5mm; padding-left:4mm; } li { margin:1mm 0; }
+ code { font:9pt Consolas,monospace; }
+ pre { margin:2mm 0 3mm; padding:3mm; white-space:pre-wrap; overflow-wrap:anywhere; color:#eef6ff; background:#1d304a; border-radius:4px; font:8.3pt/1.4 Consolas,monospace; }
+ table { width:100%; border-collapse:collapse; margin:2mm 0 3mm; }
+ th { color:#fff; background:#3372b6; text-align:left; }
+ th,td { border:1px solid #bed0e4; padding:2mm 2.5mm; vertical-align:top; }
+ tr:nth-child(even) td { background:#f2f7fc; }
+ .subtitle { color:#586b82; font-size:12pt; margin-bottom:5mm; }
+ .flow { padding:4mm; text-align:center; font-weight:600; color:#174174; background:#edf5fd; border:1px solid #bad2ea; border-radius:5px; }
+ .note { margin:3mm 0; padding:3mm 4mm; background:#fff8df; border-left:4px solid #dda31f; }
+ .good { margin:2mm 0 3mm; padding:3mm 4mm; background:#edf8f0; border-left:4px solid #48925a; }
+ .page-break { break-before:page; }
+ h2,h3 { break-after:avoid; } pre,table,.note,.good { break-inside:avoid; }
+ footer { margin-top:7mm; color:#748195; font-size:8.5pt; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>Déployer une API .NET avec Docker, ECR et EC2</h1>
+<div class="subtitle">Guide pratique appliqué à BankAccountServices</div>
+
+<div class="flow">Code .NET → docker build → image locale → docker push → Amazon ECR → docker pull → EC2 → docker run</div>
+
+<h2>1. Architecture finale</h2>
+
+<table>
+ <tr><th>Élément</th><th>Valeur du projet</th></tr>
+ <tr><td>Compte AWS</td><td><code>652197205619</code></td></tr>
+ <tr><td>Région</td><td><code>us-east-1</code></td></tr>
+ <tr><td>Repository ECR</td><td><code>bankaccount-ecr</code></td></tr>
+ <tr><td>Image</td><td><code>bankaccount-api:1.0.0</code></td></tr>
+ <tr><td>Port ASP.NET dans le conteneur</td><td><code>5000</code></td></tr>
+ <tr><td>Port public EC2</td><td><code>80</code></td></tr>
+</table>
+
+<p>URI complète de l’image :</p>
+
+<pre>652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.0.0</pre>
+
+<h2>2. Créer l’instance EC2</h2>
+
+<p>Configuration recommandée :</p>
+
+<pre>AMI      : Ubuntu Server 24.04 LTS
+Type     : t3.micro ou t3.small
+Stockage : 20 Go gp3
+Clé SSH  : fichier .pem
+IP       : Elastic IP recommandée</pre>
+
+<h3>Security Group</h3>
+
+<table>
+ <tr><th>Port</th><th>Usage</th><th>Source</th></tr>
+ <tr><td>22</td><td>SSH</td><td>Adresse IP de l’administrateur uniquement</td></tr>
+ <tr><td>80</td><td>API HTTP</td><td><code>0.0.0.0/0</code></td></tr>
+ <tr><td>443</td><td>HTTPS futur</td><td><code>0.0.0.0/0</code></td></tr>
+</table>
+
+<div class="note">Le port 443 ne fonctionne que si un certificat et un service HTTPS sont configurés avec ALB, API Gateway ou Nginx. Une simple publication Docker sur le port 80 fournit HTTP uniquement.</div>
+
+<h3>Connexion SSH</h3>
+
+<pre>ssh -i "C:\chemin\cle.pem" ubuntu@IP_EC2</pre>
+
+<div class="page-break"></div>
+
+<h2>3. Construire l’image Docker sur Windows</h2>
+
+<p>Ouvrir PowerShell dans le projet :</p>
+
+<pre>cd C:\Users\ihebb\source\repos\BankAccountServices
+Get-Item .\Dockerfile
+docker info</pre>
+
+<p>Construire une image Linux x86_64 compatible avec EC2 :</p>
+
+<pre>docker build --platform linux/amd64 -t bankaccount-api:1.0.0 .</pre>
+
+<p>Le point final est obligatoire : il représente le contexte de build.</p>
+
+<h3>Vérifier et tester</h3>
+
+<pre>docker images bankaccount-api
+
+docker run -d `
+  --name bankaccount-api-test `
+  -p 5000:5000 `
+  bankaccount-api:1.0.0
+
+docker logs bankaccount-api-test
+Invoke-RestMethod http://localhost:5000/api/Customer/liste
+
+docker rm -f bankaccount-api-test</pre>
+
+<h2>4. Créer ou utiliser le repository ECR</h2>
+
+<p>Création si nécessaire :</p>
+
+<pre>aws ecr create-repository `
+  --repository-name bankaccount-ecr `
+  --region us-east-1 `
+  --image-tag-mutability IMMUTABLE `
+  --image-scanning-configuration scanOnPush=true</pre>
+
+<p>Vérifier l’identité AWS locale :</p>
+
+<pre>aws sts get-caller-identity</pre>
+
+<h2>5. Authentifier Docker et pousser l’image</h2>
+
+<pre>aws ecr get-login-password --region us-east-1 |
+docker login `
+  --username AWS `
+  --password-stdin `
+  652197205619.dkr.ecr.us-east-1.amazonaws.com</pre>
+
+<p>Résultat attendu : <code>Login Succeeded</code>.</p>
+
+<h3>Tag ECR</h3>
+
+<pre>docker tag `
+  bankaccount-api:1.0.0 `
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.0.0</pre>
+
+<h3>Push</h3>
+
+<pre>docker push `
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.0.0</pre>
+
+<div class="good">Utiliser un tag versionné ou le SHA Git, pas seulement <code>latest</code>. L’immutabilité garantit qu’une version publiée ne sera pas écrasée.</div>
+
+<div class="page-break"></div>
+
+<h2>6. Autoriser EC2 à lire ECR</h2>
+
+<p>Créer un rôle IAM :</p>
+
+<pre>Trusted entity : AWS service / EC2
+Nom            : EC2-ECR-ReadOnly
+Permission     : AmazonEC2ContainerRegistryReadOnly</pre>
+
+<p>Attacher le rôle :</p>
+
+<pre>EC2 → Instance → Actions → Security → Modify IAM role
+→ EC2-ECR-ReadOnly</pre>
+
+<p>Depuis EC2, vérifier :</p>
+
+<pre>aws sts get-caller-identity</pre>
+
+<p>L’ARN doit contenir :</p>
+
+<pre>assumed-role/EC2-ECR-ReadOnly/...</pre>
+
+<div class="note">Ne pas utiliser <code>aws configure</code> sur EC2 en production. Le rôle IAM fournit automatiquement des credentials temporaires.</div>
+
+<h2>7. Installer Docker sur EC2</h2>
+
+<pre>sudo apt update
+sudo apt install -y docker.io awscli
+sudo systemctl enable --now docker
+sudo usermod -aG docker ubuntu</pre>
+
+<p>Après <code>usermod</code>, se déconnecter puis se reconnecter. Sinon, continuer temporairement avec <code>sudo docker</code>.</p>
+
+<h2>8. Authentifier EC2 et télécharger l’image</h2>
+
+<pre>aws ecr get-login-password --region us-east-1 |
+sudo docker login \
+  --username AWS \
+  --password-stdin \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com</pre>
+
+<pre>sudo docker pull \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.0.0
+
+sudo docker images</pre>
+
+<p>Si AWS affiche <code>Unable to locate credentials</code>, le rôle IAM n’est pas attaché ou n’est pas encore disponible.</p>
+
+<h2>9. Configurer l’application</h2>
+
+<p>L’image contient l’application et <code>appsettings.json</code>, mais les secrets de production devraient être injectés au lancement.</p>
+
+<pre>sudo nano /etc/bankaccount.env</pre>
+
+<pre>ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://+:5000
+
+ConnectionStrings__DBConnection=Server=ENDPOINT_RDS_REEL;Port=3306;Database=bankaccountdb;User=bankaccount_app;Password=SECRET;SslMode=Required;
+
+Jwt__Key=CLE_JWT_LONGUE
+Jwt__Issuer=BankAccountServices
+Jwt__Audience=BankAccountClient
+
+S3__BucketName=NOM_BUCKET
+S3__Region=us-east-1
+S3__Prefix=uploads
+S3__PreSignedUrlExpirationMinutes=15</pre>
+
+<pre>sudo chmod 600 /etc/bankaccount.env</pre>
+
+<div class="page-break"></div>
+
+<h2>10. Exécuter le conteneur sur EC2</h2>
+
+<p>Sans Nginx, publier directement le port EC2 80 vers le port conteneur 5000 :</p>
+
+<pre>sudo docker run -d \
+  --name bankaccount-api \
+  --restart unless-stopped \
+  -p 80:5000 \
+  --env-file /etc/bankaccount.env \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.0.0</pre>
+
+<p>Correspondance :</p>
+
+<div class="flow">http://IP_EC2:80 → Docker → port 5000 → ASP.NET Core</div>
+
+<p><code>--restart unless-stopped</code> redémarre le conteneur après un reboot EC2, sauf s’il a été arrêté volontairement.</p>
+
+<h3>Si le nom existe déjà</h3>
+
+<pre>sudo docker ps -a --filter name=bankaccount-api
+sudo docker rm -f bankaccount-api</pre>
+
+<p>Puis relancer la commande <code>docker run</code>.</p>
+
+<h2>11. Vérifier le déploiement</h2>
+
+<pre>sudo docker ps -a
+sudo docker port bankaccount-api
+sudo docker logs --tail 100 bankaccount-api
+
+curl http://127.0.0.1/api/Customer/liste</pre>
+
+<p>Depuis le navigateur :</p>
+
+<pre>http://IP_EC2/api/Customer/liste</pre>
+
+<p>Swagger est disponible seulement si l’environnement et le code l’activent :</p>
+
+<pre>http://IP_EC2/swagger/index.html</pre>
+
+<div class="note">Dans ce projet, Swagger est activé uniquement lorsque <code>ASPNETCORE_ENVIRONMENT=Development</code>. Ne pas exposer Swagger publiquement en production sans protection.</div>
+
+<h2>12. Connexion RDS</h2>
+
+<p>Le Security Group RDS doit autoriser :</p>
+
+<pre>Type   : MySQL/Aurora
+Port   : 3306
+Source : Security Group de l’instance EC2</pre>
+
+<p>Tester depuis EC2 avec le véritable endpoint RDS :</p>
+
+<pre>sudo apt install -y netcat-openbsd default-mysql-client
+nc -vz bankaccount-db.xxxxx.us-east-1.rds.amazonaws.com 3306
+
+mysql \
+  --host=bankaccount-db.xxxxx.us-east-1.rds.amazonaws.com \
+  --port=3306 \
+  --user=bankaccount_app \
+  --password \
+  bankaccountdb</pre>
+
+<p>Ne pas écrire littéralement <code>ENDPOINT_RDS</code> : il faut utiliser le DNS affiché dans RDS → Connectivity &amp; security.</p>
+
+<div class="page-break"></div>
+
+<h2>13. Déployer une nouvelle version</h2>
+
+<p>Sur le poste de développement :</p>
+
+<pre>docker build --platform linux/amd64 -t bankaccount-api:1.1.0 .
+docker tag bankaccount-api:1.1.0 652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.1.0
+docker push 652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.1.0</pre>
+
+<p>Sur EC2 :</p>
+
+<pre>sudo docker pull \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.1.0
+
+sudo docker rm -f bankaccount-api
+
+sudo docker run -d \
+  --name bankaccount-api \
+  --restart unless-stopped \
+  -p 80:5000 \
+  --env-file /etc/bankaccount.env \
+  652197205619.dkr.ecr.us-east-1.amazonaws.com/bankaccount-ecr:1.1.0
+
+sudo docker logs --tail 100 bankaccount-api
+curl http://127.0.0.1/api/Customer/liste</pre>
+
+<h2>14. Diagnostic rapide</h2>
+
+<table>
+ <tr><th>Erreur</th><th>Solution</th></tr>
+ <tr><td>Nom de conteneur déjà utilisé</td><td><code>sudo docker rm -f bankaccount-api</code></td></tr>
+ <tr><td>Unable to locate credentials</td><td>Attacher le rôle <code>EC2-ECR-ReadOnly</code>.</td></tr>
+ <tr><td>No basic auth credentials</td><td>Refaire <code>get-login-password | docker login</code>.</td></tr>
+ <tr><td>API inaccessible de l’extérieur</td><td>Vérifier Docker, port 80 et Security Group.</td></tr>
+ <tr><td>Erreur MySQL après 6 retries</td><td>Endpoint RDS, SG port 3306, utilisateur, base et mot de passe.</td></tr>
+ <tr><td>HTTPS sur IP échoue</td><td>Normal sans certificat ; utiliser HTTP ou ALB/API Gateway/Nginx avec domaine.</td></tr>
+ <tr><td>Swagger 404</td><td>Swagger est désactivé en Production dans le projet.</td></tr>
+</table>
+
+<h3>Commandes utiles</h3>
+
+<pre>sudo docker ps
+sudo docker ps -a
+sudo docker logs -f bankaccount-api
+sudo docker inspect bankaccount-api
+sudo docker restart bankaccount-api
+sudo ss -lntp
+aws sts get-caller-identity</pre>
+
+<h2>15. Résumé entretien</h2>
+
+<div class="good">
+ J’ai créé une instance EC2 Ubuntu, configuré ses ports et attaché un rôle IAM en lecture sur ECR. J’ai construit et testé l’image Docker de l’API .NET, puis je l’ai taguée et poussée dans le repository ECR privé. Sur EC2, j’ai installé Docker, téléchargé l’image avec le rôle IAM, injecté la configuration RDS/JWT/S3 et lancé le conteneur en mappant le port public 80 vers le port applicatif 5000, avec redémarrage automatique.
+</div>
+
+<footer>Guide pratique — BankAccountServices avec Docker, Amazon ECR et EC2</footer>
+</body>
+</html>
