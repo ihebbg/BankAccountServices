@@ -1,0 +1,9 @@
+# Etat local et fichiers de travail Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfplan
+
+# Un fichier tfvars peut contenir des donnees sensibles
+terraform.tfvars
+*.auto.tfvars

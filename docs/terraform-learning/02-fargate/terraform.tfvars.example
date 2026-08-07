@@ -1,0 +1,14 @@
+aws_region   = "eu-west-3"
+project_name = "bankaccount"
+environment  = "lab"
+
+# Keep 0 until an image has been pushed to ECR, then change to 1.
+desired_count = 0
+image_tag     = "replace-with-a-git-sha"
+
+# Create these secrets with the AWS CLI commands from README.md.
+db_connection_secret_arn = "arn:aws:secretsmanager:eu-west-3:123456789012:secret:bankaccount/lab/db-xxxxxx"
+jwt_key_secret_arn       = "arn:aws:secretsmanager:eu-west-3:123456789012:secret:bankaccount/lab/jwt-xxxxxx"
+
+s3_bucket_name = "replace-with-your-existing-bucket"
+s3_prefix      = "bankaccount"

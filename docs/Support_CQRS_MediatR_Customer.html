@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Support pratique — CQRS et MediatR avec Customer</title>
+  <style>
+    @page { size: A4; margin: 16mm 15mm 17mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #172033; font: 10.5pt/1.48 "Segoe UI", Arial, sans-serif; }
+    h1, h2, h3 { color: #102a43; margin: 0 0 8px; page-break-after: avoid; }
+    h1 { font-size: 28pt; line-height: 1.12; }
+    h2 { font-size: 18pt; border-bottom: 2px solid #2f80ed; padding-bottom: 5px; margin-top: 22px; }
+    h3 { font-size: 13pt; margin-top: 17px; }
+    p { margin: 6px 0 10px; }
+    ul, ol { margin: 6px 0 12px 21px; padding: 0; }
+    li { margin: 3px 0; }
+    code { font-family: Consolas, monospace; font-size: 9pt; }
+    pre { margin: 8px 0 13px; padding: 11px 13px; color: #e8eef8; background: #172033;
+          border-radius: 6px; white-space: pre-wrap; page-break-inside: avoid; }
+    table { width: 100%; border-collapse: collapse; margin: 9px 0 15px; page-break-inside: avoid; }
+    th, td { border: 1px solid #ccd6e0; padding: 7px 8px; vertical-align: top; }
+    th { color: #fff; background: #2f5f8f; text-align: left; }
+    tr:nth-child(even) td { background: #f4f7fa; }
+    .cover { height: 257mm; display: flex; flex-direction: column; justify-content: center;
+             background: linear-gradient(145deg, #eaf3ff 0%, #fff 55%); padding: 22mm; page-break-after: always; }
+    .cover .tag { color: #2f80ed; font-weight: 700; text-transform: uppercase; letter-spacing: 1.4px; }
+    .cover .subtitle { margin-top: 16px; font-size: 15pt; color: #486581; max-width: 140mm; }
+    .cover .meta { margin-top: 32px; padding-top: 12px; border-top: 1px solid #b8c8d8; color: #627d98; }
+    .callout { padding: 10px 12px; margin: 10px 0 14px; border-left: 5px solid #2f80ed; background: #edf6ff; page-break-inside: avoid; }
+    .warning { border-color: #ef8b2c; background: #fff5e8; }
+    .success { border-color: #279e68; background: #eaf8f1; }
+    .diagram { font-family: Consolas, monospace; background: #eef3f8; color: #17324d; border: 1px solid #c7d5e3;
+               padding: 12px; border-radius: 6px; text-align: center; margin: 10px 0 15px; page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    .small { font-size: 9pt; color: #627d98; }
+    .checklist li { list-style: "☐  "; padding-left: 4px; }
+    a { color: #1769aa; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="tag">Support pratique .NET 8</div>
+    <h1>CQRS et MediatR<br>avec le métier Customer</h1>
+    <p class="subtitle">Une progression adaptée à <strong>BankAccountServices</strong> :
+      Repository Pattern, sans couche <code>CustomerService</code>, d’abord sans MediatR puis avec MediatR.</p>
+    <div class="meta">
+      <strong>Objectif :</strong> comprendre le rôle du Controller, des Commands, des Queries,
+      des Handlers, du Repository et de MediatR — puis savoir les assembler sans duplication.
+    </div>
+  </section>
+
+  <h2>1. L’idée essentielle de CQRS</h2>
+  <p><strong>CQRS</strong> signifie <em>Command Query Responsibility Segregation</em>.
+    Il sépare les opérations qui modifient l’état des opérations qui lisent l’état.</p>
+  <table>
+    <tr><th>Command</th><th>Query</th></tr>
+    <tr><td>Demande une modification</td><td>Demande une information</td></tr>
+    <tr><td>Create, Update, Delete</td><td>GetById, GetAll, Search</td></tr>
+    <tr><td>Peut lire avant d’écrire</td><td>Ne doit pas modifier les données</td></tr>
+    <tr><td>Ex. <code>AddCustomerCommand</code></td><td>Ex. <code>GetCustomerByIdQuery</code></td></tr>
+  </table>
+  <div class="callout"><strong>Important :</strong> CQRS n’oblige ni MediatR, ni plusieurs bases,
+    ni la Clean Architecture. Une seule application et une seule base peuvent parfaitement utiliser CQRS.</div>
+
+  <h3>Application au métier Customer</h3>
+  <pre>Commands                         Queries
+AddCustomer                     GetCustomerById
+UpdateCustomer                  GetCustomers
+DeleteCustomer                  GetPaginatedCustomers</pre>
+
+  <h2>2. Architecture retenue dans ce projet</h2>
+  <p>Le Repository Pattern existant est conservé. Les Handlers remplacent progressivement les méthodes
+    de <code>CustomerService</code>.</p>
+  <div class="diagram">Controller → CommandHandler / QueryHandler → ICustomerRepository → CustomerRepository → Base</div>
+  <p>Le Controller gère HTTP. Le Handler réalise un cas d’utilisation. Le Repository encapsule l’accès aux données.</p>
+
+  <h3>Arborescence compacte</h3>
+  <pre>Features/
+└── Customers/
+    ├── Commands/
+    │   ├── AddCustomerHandler.cs
+    │   ├── UpdateCustomerHandler.cs
+    │   └── DeleteCustomerHandler.cs
+    └── Queries/
+        ├── GetCustomerByIdQueryHandler.cs
+        └── GetCustomersQueryHandler.cs
+
+Controllers/CustomerController.cs
+Repositories/Interfaces/ICustomerRepository.cs
+Repositories/CustomerRepository.cs
+Helpers/PositiveNumberValidationHelper.cs</pre>
+  <div class="callout success">Pour limiter le volume de code pendant l’apprentissage, une demande et son Handler
+    peuvent vivre dans le même fichier. La règle importante reste : <strong>un Handler par opération</strong>.</div>
+
+  <div class="page-break"></div>
+  <h2>3. Version sans MediatR</h2>
+  <p>Le Controller injecte directement chaque Handler et appelle <code>Handle()</code>.</p>
+
+  <h3>Query : lire un Customer</h3>
+  <pre>public record GetCustomerByIdQuery(long CustomerId);
+
+public class GetCustomerByIdQueryHandler(
+    ICustomerRepository repository,
+    IMapper mapper)
+{
+    public CustomerResponseDTO Handle(GetCustomerByIdQuery query)
+    {
+        PositiveNumberValidationHelper.Validate(
+            query.CustomerId,
+            nameof(query.CustomerId));
+
+        var customer = repository.GetCustomer(query.CustomerId)
+            ?? throw new KeyNotFoundException("Customer introuvable.");
+
+        return mapper.Map&lt;CustomerResponseDTO&gt;(customer);
+    }
+}</pre>
+
+  <h3>Command : créer un Customer</h3>
+  <pre>public record AddCustomerCommand(string Name, string Email);
+
+public class AddCustomerCommandHandler(
+    ICustomerRepository repository)
+{
+    public Retour Handle(AddCustomerCommand command)
+    {
+        var email = command.Email.Trim().ToLowerInvariant();
+
+        if (repository.CustomerEmaiLExist(email))
+            throw new InvalidOperationException("Email déjà utilisé.");
+
+        var customer = new Customer
+        {
+            Name = command.Name.Trim(),
+            Email = email
+        };
+
+        var id = repository.AddCustomer(customer);
+
+        return new Retour
+        {
+            Code = CodeRetour.Ok,
+            Message = "Customer ajouté",
+            ID = id
+        };
+    }
+}</pre>
+
+  <div class="callout"><strong>Pourquoi la Command lit-elle l’email ?</strong> Une Command peut lire pour vérifier
+    une règle métier avant d’écrire. Elle reste une Command car son objectif final est la création.</div>
+
+  <h3>Controller sans MediatR</h3>
+  <pre>[ApiController]
+[Route("api/[controller]")]
+public class CustomerController(
+    AddCustomerCommandHandler addHandler,
+    GetCustomerByIdQueryHandler getByIdHandler)
+    : ControllerBase
+{
+    [HttpPost]
+    public ActionResult&lt;Retour&gt; Add(CustomerCreateDTO input)
+    {
+        var command = new AddCustomerCommand(input.Name, input.Email);
+        return Ok(addHandler.Handle(command));
+    }
+
+    [HttpGet("{idCustomer:long}")]
+    public ActionResult&lt;CustomerResponseDTO&gt; GetById(long idCustomer)
+    {
+        var query = new GetCustomerByIdQuery(idCustomer);
+        return Ok(getByIdHandler.Handle(query));
+    }
+}</pre>
+
+  <h3>Enregistrement sans MediatR</h3>
+  <pre>builder.Services.AddScoped&lt;AddCustomerCommandHandler&gt;();
+builder.Services.AddScoped&lt;GetCustomerByIdQueryHandler&gt;();</pre>
+
+  <div class="page-break"></div>
+  <h2>4. Où passe la couche Services ?</h2>
+  <p>Dans cette architecture, chaque Handler est déjà un service applicatif spécialisé.
+    Un gros <code>CustomerService</code> contenant toutes les opérations ferait doublon.</p>
+  <table>
+    <tr><th>Avant</th><th>Après migration CQRS</th></tr>
+    <tr><td><code>CustomerService.AddCustomer()</code></td><td><code>AddCustomerCommandHandler.Handle()</code></td></tr>
+    <tr><td><code>CustomerService.UpdateCustomer()</code></td><td><code>UpdateCustomerCommandHandler.Handle()</code></td></tr>
+    <tr><td><code>CustomerService.DeleteCustomer()</code></td><td><code>DeleteCustomerCommandHandler.Handle()</code></td></tr>
+    <tr><td><code>CustomerService.GetCustomerByID()</code></td><td><code>GetCustomerByIdQueryHandler.Handle()</code></td></tr>
+  </table>
+  <div class="warning callout"><strong>À éviter :</strong>
+    Controller → Handler → CustomerService → Repository. Le Handler et le service porteraient la même responsabilité.</div>
+
+  <h3>Quand garder un service ?</h3>
+  <ul>
+    <li><strong>Service technique :</strong> JWT, S3, e-mail, SMS, fournisseur de paiement.</li>
+    <li><strong>Règle partagée :</strong> calcul de frais bancaires utilisé par plusieurs Handlers.</li>
+    <li><strong>Intégration externe :</strong> appel à une API ou à un système tiers.</li>
+  </ul>
+  <pre>TransferMoneyCommandHandler
+├── IBankAccountRepository
+├── ITransactionFeeService
+├── IPaymentService
+└── INotificationService</pre>
+
+  <h2>5. Validation et erreurs</h2>
+  <p>Une règle répétée peut être centralisée dans un helper :</p>
+  <pre>public static class PositiveNumberValidationHelper
+{
+    public static void Validate(long value, string parameterName)
+    {
+        if (value &lt;= 0)
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                value,
+                "La valeur doit être strictement positive.");
+    }
+}</pre>
+  <p>Utilisation :</p>
+  <pre>PositiveNumberValidationHelper.Validate(
+    command.CustomerId,
+    nameof(command.CustomerId));</pre>
+  <p>Le <code>GlobalExceptionMiddleware</code> transforme ensuite les exceptions en réponses HTTP cohérentes.</p>
+
+  <h3>Unicité de l’e-mail</h3>
+  <p>La vérification du Repository améliore le message métier, mais une contrainte <code>UNIQUE</code>
+    en base reste indispensable contre deux créations simultanées.</p>
+
+  <div class="page-break"></div>
+  <h2>6. Pourquoi ajouter MediatR ?</h2>
+  <p>Sans MediatR, un Controller important finit par injecter de nombreux Handlers. Avec MediatR,
+    il injecte seulement <code>ISender</code> et envoie chaque demande.</p>
+  <div class="diagram">Controller → sender.Send(request) → MediatR → Handler correspondant → Repository</div>
+  <table>
+    <tr><th>Sans MediatR</th><th>Avec MediatR</th></tr>
+    <tr><td>Injection de chaque Handler</td><td>Injection d’un seul <code>ISender</code></td></tr>
+    <tr><td>Appel direct de <code>Handle()</code></td><td>Appel de <code>Send()</code></td></tr>
+    <tr><td>Enregistrement manuel</td><td>Découverte automatique des Handlers</td></tr>
+    <tr><td>Traitements transversaux manuels</td><td>Pipeline Behaviors</td></tr>
+  </table>
+  <p>MediatR ne remplace ni CQRS, ni le Handler, ni le Repository. C’est un médiateur en mémoire.</p>
+
+  <h3>Installation et configuration</h3>
+  <pre>dotnet add package MediatR</pre>
+  <p>Dans <code>Program.cs</code> :</p>
+  <pre>builder.Services.AddMediatR(config =>
+    config.RegisterServicesFromAssemblyContaining&lt;Program&gt;());</pre>
+
+  <h3>Query et Handler avec MediatR</h3>
+  <pre>using MediatR;
+
+public record GetCustomerByIdQuery(long CustomerId)
+    : IRequest&lt;CustomerResponseDTO&gt;;
+
+public class GetCustomerByIdQueryHandler(
+    ICustomerRepository repository,
+    IMapper mapper)
+    : IRequestHandler&lt;GetCustomerByIdQuery, CustomerResponseDTO&gt;
+{
+    public Task&lt;CustomerResponseDTO&gt; Handle(
+        GetCustomerByIdQuery query,
+        CancellationToken cancellationToken)
+    {
+        PositiveNumberValidationHelper.Validate(
+            query.CustomerId,
+            nameof(query.CustomerId));
+
+        var customer = repository.GetCustomer(query.CustomerId)
+            ?? throw new KeyNotFoundException("Customer introuvable.");
+
+        var result = mapper.Map&lt;CustomerResponseDTO&gt;(customer);
+        return Task.FromResult(result);
+    }
+}</pre>
+
+  <h3>Controller avec MediatR</h3>
+  <pre>public class CustomerController(ISender sender) : ControllerBase
+{
+    [HttpGet("{idCustomer:long}")]
+    public async Task&lt;ActionResult&lt;CustomerResponseDTO&gt;&gt; GetById(
+        long idCustomer,
+        CancellationToken cancellationToken)
+    {
+        var query = new GetCustomerByIdQuery(idCustomer);
+        var result = await sender.Send(query, cancellationToken);
+        return Ok(result);
+    }
+}</pre>
+
+  <div class="page-break"></div>
+  <h2>7. Pipeline Behaviors</h2>
+  <p>Les Behaviors exécutent automatiquement des traitements avant et après tous les Handlers.</p>
+  <div class="diagram">HTTP → LoggingBehavior → ValidationBehavior → Handler → Repository</div>
+  <p>Cas d’usage fréquents :</p>
+  <ul>
+    <li>validation des Commands et Queries ;</li>
+    <li>journalisation et corrélation ;</li>
+    <li>mesure des performances ;</li>
+    <li>transactions ;</li>
+    <li>cache des Queries ;</li>
+    <li>contrôle d’autorisation.</li>
+  </ul>
+  <div class="callout">C’est le principal avantage architectural de MediatR. On évite de recopier le même
+    code transversal dans tous les Handlers.</div>
+
+  <h2>8. Règles pratiques à retenir</h2>
+  <ol>
+    <li>Une Command exprime une intention de modification.</li>
+    <li>Une Query lit sans modifier.</li>
+    <li>Un Handler traite une seule opération.</li>
+    <li>Une Command peut lire pour valider avant d’écrire.</li>
+    <li>Un Handler ne devrait généralement pas appeler un autre Handler.</li>
+    <li>CommandHandler et QueryHandler utilisent directement les repositories nécessaires.</li>
+    <li>La logique partagée ou externe va dans un service spécialisé.</li>
+    <li>MediatR est optionnel ; CQRS fonctionne sans lui.</li>
+    <li>Ne pas appliquer CQRS mécaniquement à un CRUD trop simple.</li>
+  </ol>
+
+  <h3>Erreurs fréquentes</h3>
+  <table>
+    <tr><th>Erreur</th><th>Correction</th></tr>
+    <tr><td>Un <code>CustomerCommandHandler</code> avec Create/Update/Delete</td><td>Un Handler par opération</td></tr>
+    <tr><td>Handler → CustomerService → Repository</td><td>Handler → Repository</td></tr>
+    <tr><td>CommandHandler → QueryHandler</td><td>Lire directement via Repository ou service partagé</td></tr>
+    <tr><td>Retourner une entité EF depuis l’API</td><td>Retourner un DTO de réponse</td></tr>
+    <tr><td>Utiliser seulement <code>EmailExist()</code></td><td>Ajouter aussi une contrainte UNIQUE en base</td></tr>
+  </table>
+
+  <div class="page-break"></div>
+  <h2>9. Plan de migration Customer</h2>
+  <ul class="checklist">
+    <li>Créer <code>GetCustomerByIdQueryHandler</code>.</li>
+    <li>Créer <code>GetCustomersQueryHandler</code>.</li>
+    <li>Créer <code>AddCustomerCommandHandler</code>.</li>
+    <li>Créer <code>UpdateCustomerCommandHandler</code>.</li>
+    <li>Créer <code>DeleteCustomerCommandHandler</code>.</li>
+    <li>Enregistrer les Handlers dans l’injection de dépendances.</li>
+    <li>Modifier <code>CustomerController</code> pour appeler les Handlers.</li>
+    <li>Supprimer chaque ancienne méthode migrée de <code>CustomerService</code>.</li>
+    <li>Supprimer <code>ICustomerService</code> et <code>CustomerService</code> une fois vides.</li>
+    <li>Compiler et tester chaque route après chaque petite migration.</li>
+    <li>Ajouter MediatR seulement après avoir compris les appels directs.</li>
+  </ul>
+
+  <h3>Tests HTTP à effectuer</h3>
+  <pre>POST   /api/customer/add
+GET    /api/customer/1
+GET    /api/customer/liste
+PUT    /api/customer/modifier/1
+DELETE /api/customer/delete/1</pre>
+  <p>Vérifier aussi les erreurs : ID égal à zéro, Customer absent, e-mail dupliqué et données invalides.</p>
+
+  <h2>10. Résumé visuel</h2>
+  <div class="diagram">SANS MEDIATR
+Controller → Handler.Handle(request) → Repository → Base
+
+AVEC MEDIATR
+Controller → sender.Send(request) → Behaviors → Handler → Repository → Base
+
+TOUJOURS
+Command = modifier | Query = lire | Repository = accéder aux données</div>
+
+  <h3>Références</h3>
+  <ul class="small">
+    <li>Microsoft Azure Architecture Center — CQRS Pattern :
+      https://learn.microsoft.com/azure/architecture/patterns/cqrs</li>
+    <li>Documentation officielle MediatR :
+      https://github.com/LuckyPennySoftware/MediatR</li>
+  </ul>
+</body>
+</html>

@@ -1,17 +1,23 @@
 ﻿using BankAccountServices.DTOs;
 using BankAccountServices.DTOs.Customer;
-using BankAccountServices.Entities;
-using BankAccountServices.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
+using BankAccountServices.Features.Customers.Commands.AddCustomer;
+using BankAccountServices.Features.Customers.Commands.DeleteCustomerHandler;
+using BankAccountServices.Features.Customers.Commands.UpdateCustomerHandler;
+using BankAccountServices.Features.Customers.Queries.GetCustomerById;
+using BankAccountServices.Features.Customers.Queries.GetCustomersQueryHandler;
+
 using Microsoft.AspNetCore.Mvc;
 namespace BankAccountServices.Controllers
 {
 	//[Authorize]
 	[Route("api/[controller]")]
 	[ApiController]
-	public class CustomerController(ICustomerService customerService) : ControllerBase
+	public class CustomerController(AddCustomerHandler addHandler,
+    UpdateCustomerHandler updateHandler,
+    DeleteCustomerHandler deleteHandler,
+    GetCustomerByIdQueryHandler getByIdHandler,
+    GetCustomersQueryHandler getAllHandler) : ControllerBase
 	{
-		private readonly ICustomerService _customerService = customerService;
 
 		/// <summary>
 		/// Add new customer
@@ -26,7 +32,7 @@ namespace BankAccountServices.Controllers
 			{
 				return BadRequest(ModelState);
 			}
-			return Ok(_customerService.AddCustomer(input));
+			return Ok(addHandler.Handle(input));
 
 
 
@@ -37,10 +43,10 @@ namespace BankAccountServices.Controllers
 		/// <param name="idCustomer"></param>
 		/// <returns></returns>
 		[HttpGet("{idCustomer}")]
-		public ActionResult<CustomerResponseDTO> GetCustomerByID(long idCustomer)
+		public ActionResult<CustomerResponseDTO> GetCustomerByID(int idCustomer)
 		{
 
-			return Ok(_customerService.GetCustomerByID(idCustomer));
+			return Ok(getByIdHandler.Handle(idCustomer));
 		}
 		/// <summary>
 		/// Get all customers
@@ -51,17 +57,17 @@ namespace BankAccountServices.Controllers
 		public ActionResult<List<CustomerResponseDTO>> GetCustomers()
 		{
 			//var idUsdddefdr = User.FindFirst("jwtLogin");
-			return Ok(_customerService.GetCustomers());
+			return Ok(getAllHandler.Handle());
 
 		}
-		[HttpGet("liste/paginated")]
-		public ActionResult<CustomerResponseDTO> GetPaginatedCustomers(int page = 1, int pageSize = 10)
-		{
+		// [HttpGet("liste/paginated")]
+		// public ActionResult<CustomerResponseDTO> GetPaginatedCustomers(int page = 1, int pageSize = 10)
+		// {
 
-			return Ok(_customerService.GetPaginatedCustomers(page, pageSize));
+		// 	return Ok(_customerService.GetPaginatedCustomers(page, pageSize));
 
 
-		}
+		// }
 
 		/// <summary>
 		/// Delete Customer
@@ -73,7 +79,7 @@ namespace BankAccountServices.Controllers
 		{
 
 
-			return Ok(_customerService.DeleteCustomer(idCustomer));
+			return Ok(deleteHandler.Handle(idCustomer));
 
 
 		}
@@ -86,13 +92,7 @@ namespace BankAccountServices.Controllers
 		[HttpPut("modifier/{idCustomer}")]
 		public ActionResult<Retour> UpdateCustomer(CustomerUpdateDTO customer, long idCustomer)
 		{
-
-			var existCustomer = _customerService.GetCustomerByID(idCustomer);
-			if (existCustomer == null)
-			{
-				return NotFound();
-			}
-			return Ok(_customerService.UpdateCustomer(customer, idCustomer));
+			return Ok(updateHandler.Handle(customer, idCustomer));
 		}
 	}
 }

@@ -13,6 +13,11 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Amazon;
 using Amazon.S3;
+using BankAccountServices.Features.Customers.Commands.AddCustomer;
+using BankAccountServices.Features.Customers.Queries.GetCustomerById;
+using BankAccountServices.Features.Customers.Commands.DeleteCustomerHandler;
+using BankAccountServices.Features.Customers.Commands.UpdateCustomerHandler;
+using BankAccountServices.Features.Customers.Queries.GetCustomersQueryHandler;
 var builder = WebApplication.CreateBuilder(args);
 
 // Autoriser CORS
@@ -105,7 +110,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 //	options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
 
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
-builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IBankAccountRepository, BankAccountRepository>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IOperationRepository, OperationRepository>();
@@ -113,6 +117,11 @@ builder.Services.AddScoped<IOperationRepository, OperationRepository>();
 builder.Services.AddScoped<IOperationService, OperationService>();
 builder.Services.AddScoped<IJwtRepository, JwtRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<AddCustomerHandler>();
+builder.Services.AddScoped<UpdateCustomerHandler>();
+builder.Services.AddScoped<DeleteCustomerHandler>();
+builder.Services.AddScoped<GetCustomerByIdQueryHandler>();
+builder.Services.AddScoped<GetCustomersQueryHandler>();
 builder.Services.AddSingleton(sp => S3Settings.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {
