@@ -2,7 +2,7 @@ name: CI/CD - Docker Desktop Kubernetes
 
 on:
   push:
-    branches: [master, main]
+    branches: [master]
   workflow_dispatch:
 
 # Le runner doit être installé sur le poste qui héberge Docker Desktop et son
