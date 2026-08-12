@@ -1,21 +1,55 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
+# =========================
+# BASE : environnement pour exécuter .NET
+# =========================
 
-COPY BankAccountServices.csproj ./
-RUN dotnet restore BankAccountServices.csproj
+# Image .NET Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 
-COPY . ./
-RUN dotnet publish BankAccountServices.csproj -c Release -o /app/publish --no-restore
-
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Dossier de travail dans le container
 WORKDIR /app
 
-ENV ASPNETCORE_URLS=http://+:5000
-EXPOSE 5000
+# L'application utilise le port 8080
+EXPOSE 8080
 
-COPY --from=build --chown=app:app /app/publish ./
-RUN mkdir -p /app/Logs && chown -R app:app /app/Logs
+# ASP.NET écoute sur le port 8080
+ENV ASPNETCORE_URLS=http://+:8080
 
-USER app
 
+# =========================
+# BUILD : compiler le projet
+# =========================
+
+# Image .NET SDK pour compiler
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
+# Dossier de travail
+WORKDIR /src
+
+# Copier le projet dans le container
+COPY . .
+
+# Restaurer les packages NuGet
+RUN dotnet restore
+
+# Compiler le projet
+RUN dotnet build -c Release
+
+# Publier l'application
+RUN dotnet publish -c Release -o /app/publish
+
+
+# =========================
+# FINAL : image finale
+# =========================
+
+# Reprendre l'image Runtime
+FROM base AS final
+
+# Dossier de l'application
+WORKDIR /app
+
+# Copier l'application publiée depuis BUILD
+COPY --from=build /app/publish .
+
+# Lancer l'application
 ENTRYPOINT ["dotnet", "BankAccountServices.dll"]

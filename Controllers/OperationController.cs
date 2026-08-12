@@ -18,7 +18,7 @@ namespace BankAccountServices.Controllers
 		[HttpGet("hello-world")]
 		public ActionResult<List<OperationResponseDTO>> HelloWorld()
 		{
-			throw new Exception("Test kkkkkk exception depuis /api/Operation/hello-world");
+			throw new Exception("Test ok exception depuis /api/Operation/hello-world");
 		}
 
 		/// <summary>

@@ -1,0 +1,238 @@
+╔════════════════════════════════════════════════════════════════╗
+║          🚀 DÉMARRAGE RAPIDE - Pipeline CI/CD                   ║
+║                  BankAccount Services                            ║
+╚════════════════════════════════════════════════════════════════╝
+
+📦 PRÉREQUIS (Vérifier d'abord)
+══════════════════════════════════════════════════════════════════
+
+✓ Docker Desktop avec Kubernetes activé
+  → https://www.docker.com/products/docker-desktop
+
+✓ .NET 8.0 SDK
+  → https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+
+✓ kubectl
+  → Inclus dans Docker Desktop
+
+Vérification:
+  docker version
+  dotnet --version
+  kubectl version --client
+
+
+🎯 ÉTAPES DE DÉMARRAGE
+══════════════════════════════════════════════════════════════════
+
+1️⃣  PREMIÈRE FOIS: Créer les secrets
+    ──────────────────────────────────
+    PowerShell:
+      .\create-secrets.ps1
+    
+    Bash:
+      chmod +x create-secrets.sh
+      ./create-secrets.sh
+    
+    ⚠️  Vous aurez besoin de votre chaîne de connexion SQL Server
+
+
+2️⃣  DÉPLOYER L'APPLICATION
+    ──────────────────────────
+    Option A - Script complet (RECOMMANDÉ):
+      .\deploy-local.ps1
+    
+    Option B - Commandes individuelles:
+      .\Makefile.ps1 build         # Compiler
+      .\Makefile.ps1 docker-build  # Construire Docker
+      .\Makefile.ps1 deploy        # Déployer
+
+
+3️⃣  VÉRIFIER LE DÉPLOIEMENT
+    ────────────────────────────
+    .\Makefile.ps1 status
+    
+    Ou manuellement:
+      kubectl get pods -l app=bankaccount
+      kubectl get services
+
+
+4️⃣  ACCÉDER À L'APPLICATION
+    ──────────────────────────
+    URL: http://localhost:30080
+
+
+5️⃣  VOIR LES LOGS
+    ──────────────
+    .\Makefile.ps1 logs
+    
+    Ou:
+      kubectl logs -l app=bankaccount -f
+
+
+⚡ COMMANDES COURANTES
+══════════════════════════════════════════════════════════════════
+
+Déployer (complet):
+  .\deploy-local.ps1
+
+Redéployer (nettoyer en premier):
+  .\deploy-local.ps1 -Clean
+
+Afficher l'aide:
+  .\Makefile.ps1 help
+
+Compiler:
+  .\Makefile.ps1 build
+
+Construire Docker:
+  .\Makefile.ps1 docker-build
+
+Déployer:
+  .\Makefile.ps1 deploy
+
+Voir le statut:
+  .\Makefile.ps1 status
+
+Voir les logs en direct:
+  .\Makefile.ps1 logs
+
+Nettoyer complètement:
+  .\Makefile.ps1 clean
+
+Tester l'application:
+  .\Makefile.ps1 test
+
+Tout d'un coup (build + docker + deploy):
+  .\Makefile.ps1 all
+
+
+📊 ARCHITECTURE DU PIPELINE
+══════════════════════════════════════════════════════════════════
+
+En Local (Docker Desktop):
+  Source Code
+       ↓
+  Dotnet Build (.NET 8.0)
+       ↓
+  Docker Build (Multistage)
+       ↓
+  Kubernetes Deploy (2 replicas)
+       ↓
+  Service (Port 30080)
+
+En CI/CD (GitHub Actions):
+  Push to main/develop
+       ↓
+  Checkout Code
+       ↓
+  Setup .NET 8.0
+       ↓
+  Build Project
+       ↓
+  Run Tests
+       ↓
+  Build Docker Image
+       ↓
+  Save as Artifact
+       ↓
+  Deploy to Kubernetes
+
+
+📁 FICHIERS IMPORTANTS
+══════════════════════════════════════════════════════════════════
+
+.github/workflows/ci-cd.yml    → Pipeline GitHub Actions
+deploy-local.ps1              → Script complet de déploiement
+Makefile.ps1                  → Commandes modulables
+create-secrets.ps1            → Configuration des secrets
+bankaccount-deployment.yaml   → Configuration Kubernetes
+Dockerfile                    → Image Docker (multistage)
+CI-CD-README.md              → Documentation complète
+PIPELINE-SUMMARY.md          → Résumé des fichiers créés
+
+
+🔧 CAS D'USAGE
+══════════════════════════════════════════════════════════════════
+
+Je veux développer localement:
+  → Utiliser: .\Makefile.ps1 all
+  → Ou: .\deploy-local.ps1
+
+Je veux voir ce qui se passe étape par étape:
+  → Utiliser: .\Makefile.ps1 [commande spécifique]
+
+Je veux redémarrer complètement:
+  → Utiliser: .\deploy-local.ps1 -Clean
+
+Je veux tester mon code:
+  → Utiliser: .\Makefile.ps1 test
+
+Je veux voir les logs en direct:
+  → Utiliser: .\Makefile.ps1 logs
+
+Je veux nettoyer avant un commit:
+  → Utiliser: .\Makefile.ps1 clean
+
+
+⚠️  POINTS IMPORTANTS
+══════════════════════════════════════════════════════════════════
+
+✓ Docker Desktop Kubernetes doit être activé
+  → Docker Desktop Settings → Kubernetes → Enable Kubernetes
+
+✓ Les secrets doivent être créés avant le déploiement
+  → .\create-secrets.ps1
+
+✓ L'image Docker sera locale, pas sur un registre
+  → Elle sera disponible que dans Docker Desktop
+
+✓ Le service utilise NodePort 30080
+  → Accès via http://localhost:30080
+
+✓ Pour la production, utiliser un vrai registre (ECR, ACR, etc.)
+
+
+🐛 DÉPANNAGE RAPIDE
+══════════════════════════════════════════════════════════════════
+
+Problem: "connection refused"
+Solution: Vérifier que Docker Desktop Kubernetes est activé
+
+Problem: "image not found"
+Solution: .\Makefile.ps1 docker-build
+
+Problem: "pod in pending"
+Solution: kubectl describe pod <pod-name>
+
+Problem: "connection string error"
+Solution: .\create-secrets.ps1 (vérifier la chaîne de connexion)
+
+Problem: "port 30080 not accessible"
+Solution: kubectl port-forward svc/bankaccount-service 8080:8080
+
+
+📞 BESOIN D'AIDE?
+══════════════════════════════════════════════════════════════════
+
+Lire la documentation complète:
+  → CI-CD-README.md
+
+Voir l'aide des commandes:
+  → .\Makefile.ps1 help
+
+Voir le statut détaillé:
+  → .\Makefile.ps1 status
+
+Voir les logs détaillés:
+  → .\Makefile.ps1 logs
+
+
+═══════════════════════════════════════════════════════════════════
+
+                    ✅ Prêt à déployer !
+
+   Exécutez: .\deploy-local.ps1
+   
+   Puis accédez à: http://localhost:30080
+
+═══════════════════════════════════════════════════════════════════

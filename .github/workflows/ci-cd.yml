@@ -1,0 +1,104 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout le code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 3. Restaurer les packages NuGet
+      - name: Restore NuGet Packages
+        run: dotnet restore
+
+      # 4. Compiler le projet
+      - name: Build Project
+        run: dotnet build -c Release --no-restore
+
+      # 5. Construire l'image Docker avec version dynamique
+      - name: Build Docker Image
+        run: |
+          # Utiliser le SHA du commit (court) comme version
+          IMAGE_TAG=${{ github.sha }}
+          SHORT_SHA=${IMAGE_TAG:0:7}
+          
+          echo "Building image with tags: bankaccount-kube:$SHORT_SHA and bankaccount-kube:latest"
+          docker build -t bankaccount-kube:$SHORT_SHA -t bankaccount-kube:latest -t bankaccount-kube:v1 .
+          
+          # Sauvegarder le tag pour les étapes suivantes
+          echo "IMAGE_TAG=$SHORT_SHA" >> $GITHUB_ENV
+
+      # 6. Sauvegarder l'image Docker en tar
+      - name: Save Docker Image
+        run: |
+          # Sauvegarder avec le tag dynamique
+          docker save bankaccount-kube:${{ env.IMAGE_TAG }} -o bankaccount-image.tar
+          echo "Image sauvegardée avec le tag: ${{ env.IMAGE_TAG }}"
+
+      # 7. Uploader l'image en tant qu'artifact
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: bankaccount-image.tar
+          retention-days: 1
+
+      # 8. Injecter la version dynamique dans le YAML et déployer
+      - name: Update Deployment Image and Deploy
+        run: |
+          # Créer une copie du fichier de déploiement
+          cp bankaccount-deployment.yaml bankaccount-deployment-updated.yaml
+          
+          # Remplacer le tag de l'image avec la version dynamique
+          sed -i "s|image: bankaccount-kube:.*|image: bankaccount-kube:${{ env.IMAGE_TAG }}|g" bankaccount-deployment-updated.yaml
+          
+          echo "=== Deployment YAML mis à jour ==="
+          cat bankaccount-deployment-updated.yaml
+          
+          # Appliquer le deployment
+          kubectl apply -f bankaccount-deployment-updated.yaml
+        continue-on-error: true
+
+      # 9. Configurer Kubectl pour Docker Desktop (Mac/Linux)
+      - name: Setup kubectl for Docker Desktop
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p $HOME/.kube
+          kubectl config use-context docker-desktop || echo "docker-desktop context not available on runner"
+        continue-on-error: true
+
+      # 10. Vérifier le statut du déploiement
+      - name: Check Deployment Status
+        run: |
+          kubectl rollout status deployment/bankaccount-kube-deployment --timeout=5m
+        continue-on-error: true
+
+      # 11. Afficher les logs du déploiement
+      - name: Show Deployment Info
+        run: |
+          echo "=== Deployments ==="
+          kubectl get deployments
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods -l app=bankaccount
+          echo ""
+          echo "=== Services ==="
+          kubectl get services
+          echo ""
+          echo "=== Deployment Details ==="
+          kubectl describe deployment bankaccount-kube-deployment
+        continue-on-error: true

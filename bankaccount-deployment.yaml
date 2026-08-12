@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bankaccount-kube-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bankaccount
+  template:
+    metadata:
+      labels:
+        app: bankaccount
+    spec:
+      containers:
+        - name: bankaccount
+          image: bankaccount-kube:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ConnectionStrings__DBConnection
+              valueFrom:
+                secretKeyRef:
+                  name: bankaccount-db
+                  key: connection-string
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bankaccount-service
+spec:
+  type: NodePort
+  selector:
+    app: bankaccount
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080

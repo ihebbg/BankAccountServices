@@ -2,6 +2,7 @@ using BankAccountServices.Data;
 using BankAccountServices.Configuration;
 using Microsoft.EntityFrameworkCore;
 using BankAccountServices.Services;
+using Prometheus;
 using BankAccountServices.Repositories;
 using BankAccountServices.Repositories.Interfaces;
 using BankAccountServices.Services.Interfaces;
@@ -150,7 +151,7 @@ builder.Logging.AddDebug();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
 	app.UseSwagger();
 	app.UseSwaggerUI();
@@ -165,6 +166,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ===== PROMETHEUS ENDPOINT =====
+// Expose les métriques sur http://localhost:8080/metrics
+app.MapMetrics();
+// ===== FIN PROMETHEUS ENDPOINT =====
+
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
 	.AllowAnonymous();
 

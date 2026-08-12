@@ -11,4 +11,3 @@ docker-compose*.yml
 *.cache
 *.log
 aws/
-appsettings*.json
