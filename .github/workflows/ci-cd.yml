@@ -56,8 +56,16 @@ jobs:
           path: bankaccount-image.tar
           retention-days: 1
 
-      # 8. Injecter la version dynamique dans le YAML et déployer
-      - name: Update Deployment Image and Deploy
+      # 8. Charger l'image Docker en tar (optionnel pour local testing)
+      - name: Load Docker Image for Local Testing
+        run: |
+          docker load -i bankaccount-image.tar
+          echo "✓ Image Docker chargée avec succès"
+          docker images | grep bankaccount-kube || true
+        continue-on-error: true
+
+      # 9. Injecter la version dynamique dans le YAML
+      - name: Update Deployment Image
         run: |
           # Créer une copie du fichier de déploiement
           cp bankaccount-deployment.yaml bankaccount-deployment-updated.yaml
@@ -67,37 +75,85 @@ jobs:
           
           echo "=== Deployment YAML mis à jour ==="
           cat bankaccount-deployment-updated.yaml
-          
-          # Appliquer le deployment
-          kubectl apply -f bankaccount-deployment-updated.yaml
-        continue-on-error: true
 
-      # 9. Configurer Kubectl pour Docker Desktop (Mac/Linux)
-      - name: Setup kubectl for Docker Desktop
-        if: runner.os != 'Windows'
+      # 10. Configurer la connexion Kubernetes
+      - name: Configure Kubernetes Access
         run: |
-          mkdir -p $HOME/.kube
-          kubectl config use-context docker-desktop || echo "docker-desktop context not available on runner"
+          # Vérifier si kubectl est disponible
+          if ! command -v kubectl &> /dev/null; then
+            echo "⚠️  kubectl n'est pas disponible"
+            exit 0
+          fi
+          
+          # Afficher le contexte actuel
+          echo "=== Contexte Kubernetes actuel ==="
+          kubectl config current-context || echo "Aucun contexte configuré"
+          
+          # Lister les contextes disponibles
+          echo ""
+          echo "=== Contextes disponibles ==="
+          kubectl config get-contexts || echo "Aucun contexte"
         continue-on-error: true
 
-      # 10. Vérifier le statut du déploiement
+      # 11. Déployer sur Kubernetes (si disponible)
+      - name: Deploy to Kubernetes
+        run: |
+          echo "=== Tentative de déploiement sur Kubernetes ==="
+          
+          # Vérifier la connexion au cluster
+          if kubectl cluster-info &> /dev/null; then
+            echo "✓ Cluster Kubernetes détecté"
+            
+            # Appliquer le deployment
+            kubectl apply -f bankaccount-deployment-updated.yaml
+            echo "✓ Deployment appliqué"
+            
+            # Attendre que les pods soient prêts
+            echo ""
+            echo "=== Attente du déploiement ==="
+            kubectl rollout status deployment/bankaccount-kube-deployment --timeout=5m || true
+            
+          else
+            echo "⚠️  Aucun cluster Kubernetes disponible"
+            echo "ℹ️  Téléchargez l'artifact 'docker-image' depuis GitHub Actions"
+            echo "ℹ️  Et chargez-le localement: docker load -i docker-image/bankaccount-image.tar"
+            exit 0
+          fi
+        continue-on-error: true
+
+      # 12. Vérifier le statut du déploiement
       - name: Check Deployment Status
         run: |
-          kubectl rollout status deployment/bankaccount-kube-deployment --timeout=5m
+          if kubectl cluster-info &> /dev/null; then
+            echo "=== Statut du Déploiement ==="
+            kubectl get deployments -l app=bankaccount
+            
+            echo ""
+            echo "=== Pods ==="
+            kubectl get pods -l app=bankaccount
+            
+            echo ""
+            echo "=== Services ==="
+            kubectl get services
+          else
+            echo "ℹ️  Cluster Kubernetes non disponible"
+          fi
         continue-on-error: true
 
-      # 11. Afficher les logs du déploiement
+      # 13. Afficher les détails du déploiement
       - name: Show Deployment Info
         run: |
-          echo "=== Deployments ==="
-          kubectl get deployments
-          echo ""
-          echo "=== Pods ==="
-          kubectl get pods -l app=bankaccount
-          echo ""
-          echo "=== Services ==="
-          kubectl get services
-          echo ""
-          echo "=== Deployment Details ==="
-          kubectl describe deployment bankaccount-kube-deployment
+          if kubectl cluster-info &> /dev/null; then
+            echo "=== Détails du Deployment ==="
+            kubectl describe deployment bankaccount-kube-deployment || true
+            
+            echo ""
+            echo "=== Logs des Pods ==="
+            kubectl logs -l app=bankaccount --tail=20 || true
+          else
+            echo "ℹ️  Pour utiliser l'image localement:"
+            echo "1. Téléchargez l'artifact 'docker-image' depuis GitHub Actions"
+            echo "2. Extrayez: docker load -i docker-image/bankaccount-image.tar"
+            echo "3. Déployez: kubectl apply -f bankaccount-deployment.yaml"
+          fi
         continue-on-error: true
