@@ -15,8 +15,9 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    # Ajoutez le label personnalisé "docker-desktop" au runner self-hosted.
-    runs-on: [self-hosted, windows, docker-desktop]
+    # Le runner Windows auto-hébergé doit être installé sur la machine qui
+    # héberge Docker Desktop et le cluster Kubernetes.
+    runs-on: [self-hosted, windows]
 
     env:
       PROJECT_FILE: BankAccountServices.csproj
