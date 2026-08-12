@@ -3,7 +3,6 @@ name: CI/CD - Docker Desktop Kubernetes
 on:
   push:
     branches: [master]
-  workflow_dispatch:
 
 # Le runner doit être installé sur le poste qui héberge Docker Desktop et son
 # cluster Kubernetes. Un runner GitHub hébergé ne peut pas accéder à ce cluster.
