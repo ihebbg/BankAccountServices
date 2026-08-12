@@ -1,159 +1,83 @@
-name: CI/CD Pipeline
+name: CI/CD - Docker Desktop Kubernetes
 
 on:
   push:
-    branches:
-      - master
+    branches: [master, main]
+  workflow_dispatch:
+
+# Le runner doit être installé sur le poste qui héberge Docker Desktop et son
+# cluster Kubernetes. Un runner GitHub hébergé ne peut pas accéder à ce cluster.
+permissions:
+  contents: read
+
+concurrency:
+  group: bankaccount-docker-desktop
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    # Ajoutez le label personnalisé "docker-desktop" au runner self-hosted.
+    runs-on: [self-hosted, windows, docker-desktop]
+
+    env:
+      PROJECT_FILE: BankAccountServices.csproj
+      IMAGE_NAME: bankaccount-kube
+      DEPLOYMENT_NAME: bankaccount-kube-deployment
+      CONTAINER_NAME: bankaccount
+      KUBERNETES_CONTEXT: docker-desktop
 
     steps:
-      # 1. Checkout le code
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Setup .NET
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: 8.0.x
 
-      # 3. Restaurer les packages NuGet
-      - name: Restore NuGet Packages
-        run: dotnet restore
-
-      # 4. Compiler le projet
-      - name: Build Project
-        run: dotnet build -c Release --no-restore
-
-      # 5. Construire l'image Docker avec version dynamique
-      - name: Build Docker Image
+      - name: Restore and build
+        shell: pwsh
         run: |
-          # Utiliser le SHA du commit (court) comme version
-          IMAGE_TAG=${{ github.sha }}
-          SHORT_SHA=${IMAGE_TAG:0:7}
-          
-          echo "Building image with tags: bankaccount-kube:$SHORT_SHA and bankaccount-kube:latest"
-          docker build -t bankaccount-kube:$SHORT_SHA -t bankaccount-kube:latest -t bankaccount-kube:v1 .
-          
-          # Sauvegarder le tag pour les étapes suivantes
-          echo "IMAGE_TAG=$SHORT_SHA" >> $GITHUB_ENV
+          dotnet restore $env:PROJECT_FILE
+          dotnet build $env:PROJECT_FILE --configuration Release --no-restore
 
-      # 6. Sauvegarder l'image Docker en tar
-      - name: Save Docker Image
+      - name: Verify Docker Desktop and Kubernetes access
+        shell: pwsh
         run: |
-          # Sauvegarder avec le tag dynamique
-          docker save bankaccount-kube:${{ env.IMAGE_TAG }} -o bankaccount-image.tar
-          echo "Image sauvegardée avec le tag: ${{ env.IMAGE_TAG }}"
+          docker version
+          kubectl config use-context $env:KUBERNETES_CONTEXT
+          kubectl cluster-info
+          kubectl get nodes
 
-      # 7. Uploader l'image en tant qu'artifact
-      - name: Upload Docker Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: bankaccount-image.tar
-          retention-days: 1
-
-      # 8. Charger l'image Docker en tar (optionnel pour local testing)
-      - name: Load Docker Image for Local Testing
+      - name: Validate required Kubernetes secret
+        shell: pwsh
         run: |
-          docker load -i bankaccount-image.tar
-          echo "✓ Image Docker chargée avec succès"
-          docker images | grep bankaccount-kube || true
-        continue-on-error: true
+          kubectl get secret bankaccount-db
 
-      # 9. Injecter la version dynamique dans le YAML
-      - name: Update Deployment Image
+      - name: Build image in Docker Desktop
+        id: image
+        shell: pwsh
         run: |
-          # Créer une copie du fichier de déploiement
-          cp bankaccount-deployment.yaml bankaccount-deployment-updated.yaml
-          
-          # Remplacer le tag de l'image avec la version dynamique
-          sed -i "s|image: bankaccount-kube:.*|image: bankaccount-kube:${{ env.IMAGE_TAG }}|g" bankaccount-deployment-updated.yaml
-          
-          echo "=== Deployment YAML mis à jour ==="
-          cat bankaccount-deployment-updated.yaml
+          $shortSha = $env:GITHUB_SHA.Substring(0, 7)
+          $image = "$env:IMAGE_NAME`:$shortSha"
+          docker build --pull --tag $image --tag "$env:IMAGE_NAME`:latest" .
+          "image=$image" >> $env:GITHUB_OUTPUT
 
-      # 10. Configurer la connexion Kubernetes
-      - name: Configure Kubernetes Access
-        run: |
-          # Vérifier si kubectl est disponible
-          if ! command -v kubectl &> /dev/null; then
-            echo "⚠️  kubectl n'est pas disponible"
-            exit 0
-          fi
-          
-          # Afficher le contexte actuel
-          echo "=== Contexte Kubernetes actuel ==="
-          kubectl config current-context || echo "Aucun contexte configuré"
-          
-          # Lister les contextes disponibles
-          echo ""
-          echo "=== Contextes disponibles ==="
-          kubectl config get-contexts || echo "Aucun contexte"
-        continue-on-error: true
-
-      # 11. Déployer sur Kubernetes (si disponible)
       - name: Deploy to Kubernetes
+        shell: pwsh
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
         run: |
-          echo "=== Tentative de déploiement sur Kubernetes ==="
-          
-          # Vérifier la connexion au cluster
-          if kubectl cluster-info &> /dev/null; then
-            echo "✓ Cluster Kubernetes détecté"
-            
-            # Appliquer le deployment
-            kubectl apply -f bankaccount-deployment-updated.yaml
-            echo "✓ Deployment appliqué"
-            
-            # Attendre que les pods soient prêts
-            echo ""
-            echo "=== Attente du déploiement ==="
-            kubectl rollout status deployment/bankaccount-kube-deployment --timeout=5m || true
-            
-          else
-            echo "⚠️  Aucun cluster Kubernetes disponible"
-            echo "ℹ️  Téléchargez l'artifact 'docker-image' depuis GitHub Actions"
-            echo "ℹ️  Et chargez-le localement: docker load -i docker-image/bankaccount-image.tar"
-            exit 0
-          fi
-        continue-on-error: true
+          # L'image vient du même moteur Docker que Kubernetes Docker Desktop;
+          # aucun registre distant ni artifact GitHub n'est nécessaire.
+          kubectl apply -f bankaccount-deployment.yaml
+          kubectl set image "deployment/$env:DEPLOYMENT_NAME" "$env:CONTAINER_NAME=$env:IMAGE"
+          kubectl rollout status "deployment/$env:DEPLOYMENT_NAME" --timeout=5m
 
-      # 12. Vérifier le statut du déploiement
-      - name: Check Deployment Status
+      - name: Show deployed version
+        shell: pwsh
         run: |
-          if kubectl cluster-info &> /dev/null; then
-            echo "=== Statut du Déploiement ==="
-            kubectl get deployments -l app=bankaccount
-            
-            echo ""
-            echo "=== Pods ==="
-            kubectl get pods -l app=bankaccount
-            
-            echo ""
-            echo "=== Services ==="
-            kubectl get services
-          else
-            echo "ℹ️  Cluster Kubernetes non disponible"
-          fi
-        continue-on-error: true
-
-      # 13. Afficher les détails du déploiement
-      - name: Show Deployment Info
-        run: |
-          if kubectl cluster-info &> /dev/null; then
-            echo "=== Détails du Deployment ==="
-            kubectl describe deployment bankaccount-kube-deployment || true
-            
-            echo ""
-            echo "=== Logs des Pods ==="
-            kubectl logs -l app=bankaccount --tail=20 || true
-          else
-            echo "ℹ️  Pour utiliser l'image localement:"
-            echo "1. Téléchargez l'artifact 'docker-image' depuis GitHub Actions"
-            echo "2. Extrayez: docker load -i docker-image/bankaccount-image.tar"
-            echo "3. Déployez: kubectl apply -f bankaccount-deployment.yaml"
-          fi
-        continue-on-error: true
+          kubectl get deployment $env:DEPLOYMENT_NAME
+          kubectl get pods -l app=bankaccount
+          kubectl get service bankaccount-service
+          kubectl get deployment $env:DEPLOYMENT_NAME -o jsonpath='{.spec.template.spec.containers[0].image}'
