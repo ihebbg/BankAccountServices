@@ -1,127 +1,127 @@
-name: Deploy API to EC2
+# name: Deploy API to EC2
 
-on:
-  push:
-    branches:
-      - master
-  workflow_dispatch:
+# on:
+#   push:
+#     branches:
+#       - master
+#   workflow_dispatch:
 
-concurrency:
-  group: bankaccountservices-ec2
-  cancel-in-progress: true
+# concurrency:
+#   group: bankaccountservices-ec2
+#   cancel-in-progress: true
 
-jobs:
-  deploy:
-    name: Build and deploy
-    runs-on: ubuntu-latest
-    env:
-      DOTNET_VERSION: 8.0.x
-      PROJECT_FILE: BankAccountServices.csproj
-      PUBLISH_DIR: publish
-      APP_DIR: /var/www/bankaccountservices
-      SERVICE_NAME: bankaccountservices.service
+# jobs:
+#   deploy:
+#     name: Build and deploy
+#     runs-on: ubuntu-latest
+#     env:
+#       DOTNET_VERSION: 8.0.x
+#       PROJECT_FILE: BankAccountServices.csproj
+#       PUBLISH_DIR: publish
+#       APP_DIR: /var/www/bankaccountservices
+#       SERVICE_NAME: bankaccountservices.service
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+#       - name: Setup .NET
+#         uses: actions/setup-dotnet@v4
+#         with:
+#           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Restore
-        run: dotnet restore "$PROJECT_FILE"
+#       - name: Restore
+#         run: dotnet restore "$PROJECT_FILE"
 
-      - name: Build
-        run: dotnet build "$PROJECT_FILE" -c Release --no-restore
+#       - name: Build
+#         run: dotnet build "$PROJECT_FILE" -c Release --no-restore
 
-      - name: Publish
-        run: dotnet publish "$PROJECT_FILE" -c Release --no-build -o "$PUBLISH_DIR"
+#       - name: Publish
+#         run: dotnet publish "$PROJECT_FILE" -c Release --no-build -o "$PUBLISH_DIR"
 
-      - name: Keep production config on EC2
-        run: rm -f "$PUBLISH_DIR"/appsettings*.json
+#       - name: Keep production config on EC2
+#         run: rm -f "$PUBLISH_DIR"/appsettings*.json
 
-      - name: Create deployment archive
-        run: tar -czf bankaccountservices.tar.gz -C "$PUBLISH_DIR" .
+#       - name: Create deployment archive
+#         run: tar -czf bankaccountservices.tar.gz -C "$PUBLISH_DIR" .
 
-      - name: Configure SSH
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
-        run: |
-          EC2_HOST="$(printf '%s' "$EC2_HOST" | tr -d '[:space:]')"
-          EC2_USER="$(printf '%s' "$EC2_USER" | tr -d '[:space:]')"
-          EC2_SSH_PORT="$(printf '%s' "${EC2_SSH_PORT:-22}" | tr -d '[:space:]')"
-          EC2_SSH_PORT="${EC2_SSH_PORT:-22}"
+#       - name: Configure SSH
+#         env:
+#           EC2_HOST: ${{ secrets.EC2_HOST }}
+#           EC2_USER: ${{ secrets.EC2_USER }}
+#           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+#           EC2_SSH_PORT: ${{ secrets.EC2_SSH_PORT }}
+#         run: |
+#           EC2_HOST="$(printf '%s' "$EC2_HOST" | tr -d '[:space:]')"
+#           EC2_USER="$(printf '%s' "$EC2_USER" | tr -d '[:space:]')"
+#           EC2_SSH_PORT="$(printf '%s' "${EC2_SSH_PORT:-22}" | tr -d '[:space:]')"
+#           EC2_SSH_PORT="${EC2_SSH_PORT:-22}"
 
-          test -n "$EC2_HOST"
-          test -n "$EC2_USER"
-          test -n "$EC2_SSH_PRIVATE_KEY"
+#           test -n "$EC2_HOST"
+#           test -n "$EC2_USER"
+#           test -n "$EC2_SSH_PRIVATE_KEY"
 
-          case "$EC2_HOST" in
-            http://*|https://*|*@*|*/*|*:*)
-              echo "::error::EC2_HOST must be only the public IP or DNS name, for example 44.200.38.172. Do not include https://, ubuntu@, paths, or :22."
-              exit 1
-              ;;
-          esac
+#           case "$EC2_HOST" in
+#             http://*|https://*|*@*|*/*|*:*)
+#               echo "::error::EC2_HOST must be only the public IP or DNS name, for example 44.200.38.172. Do not include https://, ubuntu@, paths, or :22."
+#               exit 1
+#               ;;
+#           esac
 
-          case "$EC2_USER" in
-            *@*|*/*|*:*)
-              echo "::error::EC2_USER must be only the Linux username, for example ubuntu."
-              exit 1
-              ;;
-          esac
+#           case "$EC2_USER" in
+#             *@*|*/*|*:*)
+#               echo "::error::EC2_USER must be only the Linux username, for example ubuntu."
+#               exit 1
+#               ;;
+#           esac
 
-          echo "EC2_HOST=$EC2_HOST" >> "$GITHUB_ENV"
-          echo "EC2_USER=$EC2_USER" >> "$GITHUB_ENV"
-          echo "EC2_SSH_PORT=$EC2_SSH_PORT" >> "$GITHUB_ENV"
+#           echo "EC2_HOST=$EC2_HOST" >> "$GITHUB_ENV"
+#           echo "EC2_USER=$EC2_USER" >> "$GITHUB_ENV"
+#           echo "EC2_SSH_PORT=$EC2_SSH_PORT" >> "$GITHUB_ENV"
 
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/ec2_key
-          chmod 600 ~/.ssh/ec2_key
-          if ! ssh-keyscan -T 30 -p "$EC2_SSH_PORT" -H "$EC2_HOST" >> ~/.ssh/known_hosts; then
-            echo "::error::Cannot reach EC2 SSH on $EC2_HOST:$EC2_SSH_PORT. Check the EC2 security group inbound rule for TCP 22 from GitHub Actions, or use a self-hosted runner on EC2."
-            exit 1
-          fi
+#           mkdir -p ~/.ssh
+#           chmod 700 ~/.ssh
+#           printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/ec2_key
+#           chmod 600 ~/.ssh/ec2_key
+#           if ! ssh-keyscan -T 30 -p "$EC2_SSH_PORT" -H "$EC2_HOST" >> ~/.ssh/known_hosts; then
+#             echo "::error::Cannot reach EC2 SSH on $EC2_HOST:$EC2_SSH_PORT. Check the EC2 security group inbound rule for TCP 22 from GitHub Actions, or use a self-hosted runner on EC2."
+#             exit 1
+#           fi
 
-      - name: Upload artifact to EC2
-        run: |
-          scp -P "$EC2_SSH_PORT" -i ~/.ssh/ec2_key bankaccountservices.tar.gz "$EC2_USER@$EC2_HOST:/tmp/bankaccountservices-${{ github.sha }}.tar.gz"
+#       - name: Upload artifact to EC2
+#         run: |
+#           scp -P "$EC2_SSH_PORT" -i ~/.ssh/ec2_key bankaccountservices.tar.gz "$EC2_USER@$EC2_HOST:/tmp/bankaccountservices-${{ github.sha }}.tar.gz"
 
-      - name: Deploy on EC2
-        run: |
-          ssh -p "$EC2_SSH_PORT" -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" "GITHUB_SHA=${{ github.sha }} APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' bash -s" <<'EOF'
-          set -euo pipefail
+#       - name: Deploy on EC2
+#         run: |
+#           ssh -p "$EC2_SSH_PORT" -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" "GITHUB_SHA=${{ github.sha }} APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' bash -s" <<'EOF'
+#           set -euo pipefail
 
-          ARCHIVE="/tmp/bankaccountservices-${GITHUB_SHA}.tar.gz"
-          RELEASE_DIR="/tmp/bankaccountservices-${GITHUB_SHA}"
+#           ARCHIVE="/tmp/bankaccountservices-${GITHUB_SHA}.tar.gz"
+#           RELEASE_DIR="/tmp/bankaccountservices-${GITHUB_SHA}"
 
-          if [ ! -f "$APP_DIR/appsettings.json" ]; then
-            echo "Missing $APP_DIR/appsettings.json. Create the production appsettings.json on EC2 before deploying."
-            exit 1
-          fi
+#           if [ ! -f "$APP_DIR/appsettings.json" ]; then
+#             echo "Missing $APP_DIR/appsettings.json. Create the production appsettings.json on EC2 before deploying."
+#             exit 1
+#           fi
 
-          rm -rf "$RELEASE_DIR"
-          mkdir -p "$RELEASE_DIR"
-          tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
+#           rm -rf "$RELEASE_DIR"
+#           mkdir -p "$RELEASE_DIR"
+#           tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
 
-          sudo mkdir -p "$APP_DIR"
-          sudo systemctl stop "$SERVICE_NAME"
-          sudo rm -f "$APP_DIR/appsettings.Development.json" "$APP_DIR/appsettings.Staging.json"
+#           sudo mkdir -p "$APP_DIR"
+#           sudo systemctl stop "$SERVICE_NAME"
+#           sudo rm -f "$APP_DIR/appsettings.Development.json" "$APP_DIR/appsettings.Staging.json"
 
-          if command -v rsync >/dev/null 2>&1; then
-            sudo rsync -a --delete --exclude 'appsettings*.json' --exclude 'Logs/' "$RELEASE_DIR"/ "$APP_DIR"/
-          else
-            sudo cp -a "$RELEASE_DIR"/. "$APP_DIR"/
-          fi
+#           if command -v rsync >/dev/null 2>&1; then
+#             sudo rsync -a --delete --exclude 'appsettings*.json' --exclude 'Logs/' "$RELEASE_DIR"/ "$APP_DIR"/
+#           else
+#             sudo cp -a "$RELEASE_DIR"/. "$APP_DIR"/
+#           fi
 
-          sudo chown -R www-data:www-data "$APP_DIR"
-          sudo systemctl start "$SERVICE_NAME"
-          sudo systemctl is-active --quiet "$SERVICE_NAME"
+#           sudo chown -R www-data:www-data "$APP_DIR"
+#           sudo systemctl start "$SERVICE_NAME"
+#           sudo systemctl is-active --quiet "$SERVICE_NAME"
 
-          rm -rf "$RELEASE_DIR" "$ARCHIVE"
-          EOF
+#           rm -rf "$RELEASE_DIR" "$ARCHIVE"
+#           EOF

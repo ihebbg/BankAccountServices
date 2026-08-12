@@ -1,200 +1,200 @@
-name: Build, push to ECR and deploy to Ubuntu
+# name: Build, push to ECR and deploy to Ubuntu
 
-on:
-  workflow_dispatch:
+# on:
+#   workflow_dispatch:
 
-permissions:
-  contents: read
+# permissions:
+#   contents: read
 
-concurrency:
-  group: bankaccountservices-ecr-production
-  cancel-in-progress: true
+# concurrency:
+#   group: bankaccountservices-ecr-production
+#   cancel-in-progress: true
 
-env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY: bankaccount-ecr
-  EC2_HOST: ec2-18-212-114-126.compute-1.amazonaws.com
-  EC2_USER: ubuntu
-  EC2_SSH_PORT: "22"
-  CONTAINER_NAME: bankaccountservices
-  HOST_PORT: "5000"
-  CONTAINER_PORT: "5000"
+# env:
+#   AWS_REGION: us-east-1
+#   ECR_REPOSITORY: bankaccount-ecr
+#   EC2_HOST: ec2-18-212-114-126.compute-1.amazonaws.com
+#   EC2_USER: ubuntu
+#   EC2_SSH_PORT: "22"
+#   CONTAINER_NAME: bankaccountservices
+#   HOST_PORT: "5000"
+#   CONTAINER_PORT: "5000"
 
-jobs:
-  build-push-deploy:
-    name: Build image, push it and deploy it
-    runs-on: ubuntu-latest
+# jobs:
+#   build-push-deploy:
+#     name: Build image, push it and deploy it
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v5
 
-      - name: Validate required GitHub secrets
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
-        run: |
-          test -n "$AWS_ACCESS_KEY_ID" || {
-            echo "::error::Missing GitHub Actions secret AWS_ACCESS_KEY_ID"
-            exit 1
-          }
-          test -n "$AWS_SECRET_ACCESS_KEY" || {
-            echo "::error::Missing GitHub Actions secret AWS_SECRET_ACCESS_KEY"
-            exit 1
-          }
-          test -n "$EC2_SSH_PRIVATE_KEY" || {
-            echo "::error::Missing GitHub Actions secret EC2_SSH_PRIVATE_KEY"
-            exit 1
-          }
-          test -n "$APP_ENV_FILE" || {
-            echo "::error::Missing GitHub Actions secret APP_ENV_FILE"
-            exit 1
-          }
+#       - name: Validate required GitHub secrets
+#         env:
+#           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+#           APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+#         run: |
+#           test -n "$AWS_ACCESS_KEY_ID" || {
+#             echo "::error::Missing GitHub Actions secret AWS_ACCESS_KEY_ID"
+#             exit 1
+#           }
+#           test -n "$AWS_SECRET_ACCESS_KEY" || {
+#             echo "::error::Missing GitHub Actions secret AWS_SECRET_ACCESS_KEY"
+#             exit 1
+#           }
+#           test -n "$EC2_SSH_PRIVATE_KEY" || {
+#             echo "::error::Missing GitHub Actions secret EC2_SSH_PRIVATE_KEY"
+#             exit 1
+#           }
+#           test -n "$APP_ENV_FILE" || {
+#             echo "::error::Missing GitHub Actions secret APP_ENV_FILE"
+#             exit 1
+#           }
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v6
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify ECR repository
-        run: |
-          aws ecr describe-repositories \
-            --repository-names "$ECR_REPOSITORY" \
-            --region "$AWS_REGION"
+#       - name: Verify ECR repository
+#         run: |
+#           aws ecr describe-repositories \
+#             --repository-names "$ECR_REPOSITORY" \
+#             --region "$AWS_REGION"
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        run: |
-          AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-          ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-          aws ecr get-login-password --region "$AWS_REGION" \
-            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-          echo "registry=$ECR_REGISTRY" >> "$GITHUB_OUTPUT"
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         run: |
+#           AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+#           ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+#           aws ecr get-login-password --region "$AWS_REGION" \
+#             | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+#           echo "registry=$ECR_REGISTRY" >> "$GITHUB_OUTPUT"
 
-      - name: Set image names
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          echo "IMAGE_SHA=$ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_SHA}" >> "$GITHUB_ENV"
+#       - name: Set image names
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#         run: |
+#           echo "IMAGE_SHA=$ECR_REGISTRY/$ECR_REPOSITORY:${GITHUB_SHA}" >> "$GITHUB_ENV"
 
-      - name: Build Docker image
-        run: |
-          docker build \
-            --pull \
-            --platform linux/amd64 \
-            --tag "$IMAGE_SHA" \
-            .
+#       - name: Build Docker image
+#         run: |
+#           docker build \
+#             --pull \
+#             --platform linux/amd64 \
+#             --tag "$IMAGE_SHA" \
+#             .
 
-      - name: Push Docker image to ECR
-        run: docker push "$IMAGE_SHA"
+#       - name: Push Docker image to ECR
+#         run: docker push "$IMAGE_SHA"
 
-      - name: Configure SSH
-        env:
-          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        run: |
-          test -n "$EC2_SSH_PRIVATE_KEY"
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/ec2_key"
-          chmod 600 "$HOME/.ssh/ec2_key"
-          ssh-keyscan -T 30 -p "$EC2_SSH_PORT" -H "$EC2_HOST" >> "$HOME/.ssh/known_hosts"
+#       - name: Configure SSH
+#         env:
+#           EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+#         run: |
+#           test -n "$EC2_SSH_PRIVATE_KEY"
+#           mkdir -p "$HOME/.ssh"
+#           chmod 700 "$HOME/.ssh"
+#           printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/ec2_key"
+#           chmod 600 "$HOME/.ssh/ec2_key"
+#           ssh-keyscan -T 30 -p "$EC2_SSH_PORT" -H "$EC2_HOST" >> "$HOME/.ssh/known_hosts"
 
-      - name: Upload production environment file
-        env:
-          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
-        run: |
-          printf '%s\n' "$APP_ENV_FILE" > "$RUNNER_TEMP/bankaccountservices.env"
-          chmod 600 "$RUNNER_TEMP/bankaccountservices.env"
-          scp \
-            -P "$EC2_SSH_PORT" \
-            -i "$HOME/.ssh/ec2_key" \
-            "$RUNNER_TEMP/bankaccountservices.env" \
-            "$EC2_USER@$EC2_HOST:/tmp/bankaccountservices.env"
+#       - name: Upload production environment file
+#         env:
+#           APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+#         run: |
+#           printf '%s\n' "$APP_ENV_FILE" > "$RUNNER_TEMP/bankaccountservices.env"
+#           chmod 600 "$RUNNER_TEMP/bankaccountservices.env"
+#           scp \
+#             -P "$EC2_SSH_PORT" \
+#             -i "$HOME/.ssh/ec2_key" \
+#             "$RUNNER_TEMP/bankaccountservices.env" \
+#             "$EC2_USER@$EC2_HOST:/tmp/bankaccountservices.env"
 
-      - name: Pull and run image on Ubuntu
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          ssh \
-            -p "$EC2_SSH_PORT" \
-            -i "$HOME/.ssh/ec2_key" \
-            "$EC2_USER@$EC2_HOST" \
-            "AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' IMAGE='$IMAGE_SHA' CONTAINER_NAME='$CONTAINER_NAME' HOST_PORT='$HOST_PORT' CONTAINER_PORT='$CONTAINER_PORT' bash -s" <<'EOF'
-          set -euo pipefail
+#       - name: Pull and run image on Ubuntu
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#         run: |
+#           ssh \
+#             -p "$EC2_SSH_PORT" \
+#             -i "$HOME/.ssh/ec2_key" \
+#             "$EC2_USER@$EC2_HOST" \
+#             "AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' IMAGE='$IMAGE_SHA' CONTAINER_NAME='$CONTAINER_NAME' HOST_PORT='$HOST_PORT' CONTAINER_PORT='$CONTAINER_PORT' bash -s" <<'EOF'
+#           set -euo pipefail
 
-          command -v aws >/dev/null 2>&1 || {
-            echo "AWS CLI is not installed on the EC2 instance."
-            exit 1
-          }
-          command -v docker >/dev/null 2>&1 || {
-            echo "Docker is not installed on the EC2 instance."
-            exit 1
-          }
-          test -f /tmp/bankaccountservices.env || {
-            echo "The production environment file was not uploaded."
-            exit 1
-          }
+#           command -v aws >/dev/null 2>&1 || {
+#             echo "AWS CLI is not installed on the EC2 instance."
+#             exit 1
+#           }
+#           command -v docker >/dev/null 2>&1 || {
+#             echo "Docker is not installed on the EC2 instance."
+#             exit 1
+#           }
+#           test -f /tmp/bankaccountservices.env || {
+#             echo "The production environment file was not uploaded."
+#             exit 1
+#           }
 
-          sudo install \
-            --owner=root \
-            --group=root \
-            --mode=600 \
-            /tmp/bankaccountservices.env \
-            /etc/bankaccountservices.env
-          rm -f /tmp/bankaccountservices.env
+#           sudo install \
+#             --owner=root \
+#             --group=root \
+#             --mode=600 \
+#             /tmp/bankaccountservices.env \
+#             /etc/bankaccountservices.env
+#           rm -f /tmp/bankaccountservices.env
 
-          aws ecr get-login-password --region "$AWS_REGION" \
-            | sudo docker login --username AWS --password-stdin "$ECR_REGISTRY"
+#           aws ecr get-login-password --region "$AWS_REGION" \
+#             | sudo docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-          sudo docker pull "$IMAGE"
+#           sudo docker pull "$IMAGE"
 
-          BACKUP_CONTAINER="${CONTAINER_NAME}-rollback"
-          sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
+#           BACKUP_CONTAINER="${CONTAINER_NAME}-rollback"
+#           sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
 
-          if sudo docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
-            sudo docker stop "$CONTAINER_NAME"
-            sudo docker rename "$CONTAINER_NAME" "$BACKUP_CONTAINER"
-          fi
+#           if sudo docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+#             sudo docker stop "$CONTAINER_NAME"
+#             sudo docker rename "$CONTAINER_NAME" "$BACKUP_CONTAINER"
+#           fi
 
-          sudo docker run -d \
-            --name "$CONTAINER_NAME" \
-            --restart unless-stopped \
-            --env-file /etc/bankaccountservices.env \
-            --cap-drop ALL \
-            --security-opt no-new-privileges:true \
-            --pids-limit 200 \
-            --memory 512m \
-            --cpus 1 \
-            -p "$HOST_PORT:$CONTAINER_PORT" \
-            "$IMAGE"
+#           sudo docker run -d \
+#             --name "$CONTAINER_NAME" \
+#             --restart unless-stopped \
+#             --env-file /etc/bankaccountservices.env \
+#             --cap-drop ALL \
+#             --security-opt no-new-privileges:true \
+#             --pids-limit 200 \
+#             --memory 512m \
+#             --cpus 1 \
+#             -p "$HOST_PORT:$CONTAINER_PORT" \
+#             "$IMAGE"
 
-          HEALTHY=false
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error \
-              "http://127.0.0.1:${HOST_PORT}/health" >/dev/null; then
-              HEALTHY=true
-              break
-            fi
-            sleep 2
-          done
+#           HEALTHY=false
+#           for attempt in $(seq 1 30); do
+#             if curl --fail --silent --show-error \
+#               "http://127.0.0.1:${HOST_PORT}/health" >/dev/null; then
+#               HEALTHY=true
+#               break
+#             fi
+#             sleep 2
+#           done
 
-          if [ "$HEALTHY" != "true" ]; then
-            echo "The new container failed its health check. Rolling back."
-            sudo docker logs --tail 100 "$CONTAINER_NAME" || true
-            sudo docker rm -f "$CONTAINER_NAME"
+#           if [ "$HEALTHY" != "true" ]; then
+#             echo "The new container failed its health check. Rolling back."
+#             sudo docker logs --tail 100 "$CONTAINER_NAME" || true
+#             sudo docker rm -f "$CONTAINER_NAME"
 
-            if sudo docker inspect "$BACKUP_CONTAINER" >/dev/null 2>&1; then
-              sudo docker rename "$BACKUP_CONTAINER" "$CONTAINER_NAME"
-              sudo docker start "$CONTAINER_NAME"
-            fi
-            exit 1
-          fi
+#             if sudo docker inspect "$BACKUP_CONTAINER" >/dev/null 2>&1; then
+#               sudo docker rename "$BACKUP_CONTAINER" "$CONTAINER_NAME"
+#               sudo docker start "$CONTAINER_NAME"
+#             fi
+#             exit 1
+#           fi
 
-          sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
-          sudo docker image prune -f
-          sudo docker ps --filter "name=$CONTAINER_NAME"
-          EOF
+#           sudo docker rm -f "$BACKUP_CONTAINER" 2>/dev/null || true
+#           sudo docker image prune -f
+#           sudo docker ps --filter "name=$CONTAINER_NAME"
+#           EOF
