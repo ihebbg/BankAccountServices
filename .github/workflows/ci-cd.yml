@@ -17,7 +17,6 @@ jobs:
   build-and-deploy:
     # Le runner Windows auto-hébergé doit être installé sur la machine qui
     # héberge Docker Desktop et le cluster Kubernetes.
-    runs-on: [self-hosted, windows]
 
     env:
       PROJECT_FILE: BankAccountServices.csproj
