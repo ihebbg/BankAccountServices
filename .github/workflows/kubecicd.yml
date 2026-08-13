@@ -34,6 +34,10 @@ jobs:
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
+        env:
+          # Le runner Windows s'exécute comme service et ne peut pas écrire
+          # dans C:\Program Files\dotnet.
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}\dotnet
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
