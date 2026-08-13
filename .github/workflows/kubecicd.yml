@@ -43,11 +43,16 @@ jobs:
 
       - name: Restore
         shell: powershell
-        run: dotnet restore $env:PROJECT_FILE
+        # Le runner Docker Desktop a une mémoire limitée : éviter les restaurations
+        # NuGet simultanées qui augmentent le pic mémoire avant la compilation.
+        run: dotnet restore $env:PROJECT_FILE --disable-parallel
 
       - name: Build
         shell: powershell
-        run: dotnet build $env:PROJECT_FILE --configuration Release --no-restore
+        # Une compilation séquentielle évite les OOM de Razor/CreateAppHost sur le
+        # runner Windows. L'apphost Windows est inutile : l'application est lancée
+        # dans le conteneur avec `dotnet BankAccountServices.dll`.
+        run: dotnet build $env:PROJECT_FILE --configuration Release --no-restore --disable-build-servers --maxcpucount:1 -p:UseAppHost=false
       - name: Check Docker Desktop and Kubernetes
         shell: powershell
         run: |
