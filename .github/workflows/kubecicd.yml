@@ -62,6 +62,7 @@ jobs:
             throw "Le contexte Kubernetes doit etre 'docker-desktop', actuel : $context"
           }
           kubectl get secret bankaccount-db
+          kubectl get secret bankaccount-jwt
 
       - name: Build image
         shell: powershell

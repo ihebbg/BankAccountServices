@@ -24,6 +24,15 @@ spec:
                 secretKeyRef:
                   name: bankaccount-db
                   key: connection-string
+            - name: Jwt__Key
+              valueFrom:
+                secretKeyRef:
+                  name: bankaccount-jwt
+                  key: key
+            - name: Jwt__Issuer
+              value: BankAccountServices
+            - name: Jwt__Audience
+              value: BankAccountClient
 ---
 apiVersion: v1
 kind: Service
