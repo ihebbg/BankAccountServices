@@ -42,14 +42,14 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        shell: pwsh
+        shell: powershell
         run: dotnet restore $env:PROJECT_FILE
 
       - name: Build
-        shell: pwsh
+        shell: powershell
         run: dotnet build $env:PROJECT_FILE --configuration Release --no-restore
       - name: Check Docker Desktop and Kubernetes
-        shell: pwsh
+        shell: powershell
         run: |
           docker version
           $context = kubectl config current-context
@@ -59,13 +59,13 @@ jobs:
           kubectl get secret bankaccount-db
 
       - name: Build image
-        shell: pwsh
+        shell: powershell
         run: |
           $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
           docker build --tag $image .
 
       - name: Deploy image
-        shell: pwsh
+        shell: powershell
         run: |
           $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
           kubectl apply -f $env:MANIFEST
@@ -73,7 +73,7 @@ jobs:
           kubectl rollout status "deployment/$env:DEPLOYMENT" --timeout=180s
 
       - name: Show deployed resources
-        shell: pwsh
+        shell: powershell
         run: |
           kubectl get pods -l app=bankaccount
           kubectl get service bankaccount-service
