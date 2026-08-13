@@ -74,7 +74,9 @@ jobs:
         run: |
           $image = "$env:IMAGE_REPOSITORY`:$env:GITHUB_SHA"
           $manifest = Get-Content -Raw $env:MANIFEST
-          $updatedManifest = $manifest -replace '(?m)^([ \t]*image:[ \t]*)\S+[ \t]*$', "`${1}$image"
+          # Le manifeste est extrait sous Windows (CRLF) : conserver le retour
+          # chariot final tout en remplaçant uniquement la valeur de `image`.
+          $updatedManifest = $manifest -replace '(?m)^([ \t]*image:[ \t]*)\S+[ \t]*\r?$', "`${1}$image"
 
           if ($updatedManifest -eq $manifest) {
             throw "Aucune image n'a ete trouvee dans $env:MANIFEST."
