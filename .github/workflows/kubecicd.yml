@@ -73,7 +73,6 @@ jobs:
         shell: powershell
         run: |
           $image = "bankaccount-kube:v1"
-          kubectl apply -f $env:MANIFEST
           kubectl set image "deployment/$env:DEPLOYMENT" "$env:CONTAINER=$image"
           kubectl rollout status "deployment/$env:DEPLOYMENT" --timeout=180s
 
