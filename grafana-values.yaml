@@ -1,5 +1,0 @@
-helm upgrade monitoring prometheus-community/kube-prometheus-stack `
-  -n monitoring `
-  --reuse-values `
-  --set grafana.grafana.ini.server.root_url=http://localhost:3000/ `
-  --set grafana.grafana.ini.server.serve_from_sub_path=false
