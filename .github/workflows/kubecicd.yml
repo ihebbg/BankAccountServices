@@ -66,14 +66,22 @@ jobs:
       - name: Build image
         shell: powershell
         run: |
-          $image = "bankaccount-kube:v1"
+          $image = "$env:IMAGE_REPOSITORY`:$env:GITHUB_SHA"
           docker build --tag $image .
 
       - name: Deploy image
         shell: powershell
         run: |
-          $image = "bankaccount-kube:v1"
-          kubectl set image "deployment/$env:DEPLOYMENT" "$env:CONTAINER=$image"
+          $image = "$env:IMAGE_REPOSITORY`:$env:GITHUB_SHA"
+          $manifest = Get-Content -Raw $env:MANIFEST
+          $updatedManifest = $manifest -replace '(?m)^([ \t]*image:[ \t]*)\S+[ \t]*$', "`${1}$image"
+
+          if ($updatedManifest -eq $manifest) {
+            throw "Aucune image n'a ete trouvee dans $env:MANIFEST."
+          }
+
+          Set-Content -Path $env:MANIFEST -Value $updatedManifest -NoNewline
+          kubectl apply -f $env:MANIFEST
           kubectl rollout status "deployment/$env:DEPLOYMENT" --timeout=180s
 
       - name: Show deployed resources
