@@ -61,13 +61,13 @@ jobs:
       - name: Build image
         shell: powershell
         run: |
-          $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          $image = "bankaccount-kube:v1"
           docker build --tag $image .
 
       - name: Deploy image
         shell: powershell
         run: |
-          $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          $image = "bankaccount-kube:v1"
           kubectl apply -f $env:MANIFEST
           kubectl set image "deployment/$env:DEPLOYMENT" "$env:CONTAINER=$image"
           kubectl rollout status "deployment/$env:DEPLOYMENT" --timeout=180s
