@@ -1,0 +1,75 @@
+name: KubeCI/CD
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Docker Desktop ne doit executer qu'un rollout a la fois.
+concurrency:
+  group: bankaccount-docker-desktop
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: 8.0.x
+  PROJECT_FILE: BankAccountServices.csproj
+  IMAGE_REPOSITORY: bankaccount-kube
+  DEPLOYMENT: bankaccount-kube-deployment
+  CONTAINER: bankaccount
+  MANIFEST: bankaccount-deployment.yaml
+
+jobs:
+  build-and-deploy:
+    name: Build and deploy to Docker Desktop Kubernetes
+    # Ce runner doit etre installe sur le PC qui heberge Docker Desktop.
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore $env:PROJECT_FILE
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build $env:PROJECT_FILE --configuration Release --no-restore
+      - name: Check Docker Desktop and Kubernetes
+        shell: pwsh
+        run: |
+          docker version
+          $context = kubectl config current-context
+          if ($context -ne 'docker-desktop') {
+            throw "Le contexte Kubernetes doit etre 'docker-desktop', actuel : $context"
+          }
+          kubectl get secret bankaccount-db
+
+      - name: Build image
+        shell: pwsh
+        run: |
+          $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          docker build --tag $image .
+
+      - name: Deploy image
+        shell: pwsh
+        run: |
+          $image = "${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}"
+          kubectl apply -f $env:MANIFEST
+          kubectl set image "deployment/$env:DEPLOYMENT" "$env:CONTAINER=$image"
+          kubectl rollout status "deployment/$env:DEPLOYMENT" --timeout=180s
+
+      - name: Show deployed resources
+        shell: pwsh
+        run: |
+          kubectl get pods -l app=bankaccount
+          kubectl get service bankaccount-service
